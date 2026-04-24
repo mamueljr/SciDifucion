@@ -1,0 +1,6 @@
+{
+  "name": "SciDifusión - Plataforma de Divulgación Científica",
+  "description": "Plataforma académica modular para la difusión y divulgación científica con control granular de accesos (RBAC).",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
