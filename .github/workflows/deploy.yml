@@ -1,0 +1,35 @@
+name: Deploy Frontend to Hostinger
+
+on:
+  push:
+    branches:
+      - main  # Se ejecutará cuando hagas un "push" a la rama main (o cámbialo a master si usas master)
+
+jobs:
+  web-deploy:
+    name: 🎉 Deploy to Hostinger
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚚 Descargar código fuente
+        uses: actions/checkout@v4
+      
+      - name: ⚙️ Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Usa la versión estable actual de Node
+          cache: 'npm'
+          
+      - name: 📦 Instalar dependencias
+        run: npm install
+        
+      - name: 🏗️ Construir el proyecto (dist)
+        run: npm run build
+        
+      - name: 📂 Subir a Hostinger por FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./dist/
+          server-dir: ./public_html/ # ⚠️ Ajusta esto si Hostinger te pide otra ruta como ./domains/tudominio.com/public_html/
