@@ -11,6 +11,8 @@ import {
   Search, 
   Sun,
   Moon,
+  Pencil,
+  Trash2,
   PlusCircle, 
   LogOut, 
   Database, 
@@ -35,7 +37,10 @@ interface ContentItem {
   titulo: string;
   cuerpo: string;
   autor: string;
+  autor_id: number;
   tipo: string;
+  tipo_id: number;
+  estado: 'publicado' | 'borrador' | 'archivado';
   created_at: string;
   archivo_nombre?: string | null;
   archivo_url?: string | null;
@@ -67,7 +72,11 @@ export default function App() {
   const [typeId, setTypeId] = useState(1);
   const [status, setStatus] = useState<'publicado' | 'borrador'>('publicado');
   const [file, setFile] = useState<File | null>(null);
+  const [editingContentId, setEditingContentId] = useState<number | null>(null);
+  const [currentAttachment, setCurrentAttachment] = useState<{ name: string; url: string } | null>(null);
+  const [removeAttachment, setRemoveAttachment] = useState(false);
   const isDark = theme === 'dark';
+  const isEditing = editingContentId !== null;
 
   const shellClass = isDark ? 'bg-[#0A0A0B] text-slate-300' : 'bg-[#f3f6fb] text-slate-800';
   const headerClass = isDark ? 'bg-[#111114] border-white/10' : 'bg-white/90 border-slate-200 shadow-sm';
@@ -162,10 +171,15 @@ export default function App() {
   const handleCreateContent = async (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData();
+    formData.append('accion', isEditing ? 'actualizar' : 'crear');
     formData.append('titulo', title);
     formData.append('cuerpo', body);
     formData.append('tipo_id', String(typeId));
     formData.append('estado', status);
+    if (isEditing) {
+      formData.append('id', String(editingContentId));
+      formData.append('remove_attachment', removeAttachment ? '1' : '0');
+    }
     if (file) {
       formData.append('archivo', file);
     }
@@ -175,18 +189,68 @@ export default function App() {
       body: formData
     });
     if (res.ok) {
-      alert("Contenido publicado");
-      setTitle('');
-      setBody('');
-      setTypeId(1);
-      setStatus('publicado');
-      setFile(null);
+      alert(isEditing ? "Publicación actualizada" : "Contenido publicado");
+      resetContentForm();
       setView('home');
       fetchContent();
     } else {
       const err = await res.json();
       alert(err.error || "Error al publicar");
     }
+  };
+
+  const resetContentForm = () => {
+    setTitle('');
+    setBody('');
+    setTypeId(1);
+    setStatus('publicado');
+    setFile(null);
+    setEditingContentId(null);
+    setCurrentAttachment(null);
+    setRemoveAttachment(false);
+  };
+
+  const handleStartCreate = () => {
+    resetContentForm();
+    setView('create');
+  };
+
+  const handleStartEdit = (item: ContentItem) => {
+    setEditingContentId(item.id);
+    setTitle(item.titulo);
+    setBody(item.cuerpo);
+    setTypeId(item.tipo_id);
+    setStatus(item.estado === 'borrador' ? 'borrador' : 'publicado');
+    setFile(null);
+    setCurrentAttachment(item.archivo_url ? { name: item.archivo_nombre || 'Adjunto actual', url: item.archivo_url } : null);
+    setRemoveAttachment(false);
+    setView('create');
+  };
+
+  const handleDeleteContent = async (item: ContentItem) => {
+    const confirmed = window.confirm(`¿Eliminar la publicación "${item.titulo}"? Esta acción no se puede deshacer.`);
+    if (!confirmed) return;
+
+    const formData = new FormData();
+    formData.append('accion', 'eliminar');
+    formData.append('id', String(item.id));
+
+    const res = await fetch(`${API_PREFIX}/contenido.php`, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (res.ok) {
+      if (editingContentId === item.id) {
+        resetContentForm();
+        setView('home');
+      }
+      fetchContent();
+      return;
+    }
+
+    const err = await res.json();
+    alert(err.error || 'No se pudo eliminar la publicación');
   };
 
   if (loading) return (
@@ -286,7 +350,7 @@ export default function App() {
                 </div>
                 {(user?.role === 'admin' || user?.role === 'investigador') && (
                   <button 
-                    onClick={() => setView('create')}
+                    onClick={handleStartCreate}
                     className="flex items-center gap-2 px-6 py-3 bg-sky-500 text-white rounded font-bold uppercase tracking-widest text-[10px] hover:bg-sky-400 transition-all shadow-lg shadow-sky-500/20 w-fit"
                   >
                     <PlusCircle size={16} />
@@ -302,8 +366,30 @@ export default function App() {
                     key={item.id}
                     className={`p-8 rounded border hover:border-sky-500/50 transition-all group flex flex-col h-full relative overflow-hidden ${panelClass}`}
                   >
+                    {user?.id === item.autor_id && (
+                      <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+                        <button
+                          onClick={() => handleStartEdit(item)}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded border text-[9px] font-bold uppercase tracking-widest transition-colors ${ghostButtonClass}`}
+                        >
+                          <Pencil size={12} />
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDeleteContent(item)}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded border text-[9px] font-bold uppercase tracking-widest transition-colors ${
+                            isDark
+                              ? 'border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20'
+                              : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
+                          }`}
+                        >
+                          <Trash2 size={12} />
+                          Eliminar
+                        </button>
+                      </div>
+                    )}
                     <div className="absolute top-0 left-0 w-1 h-full bg-sky-500/30 group-hover:bg-sky-500 transition-colors"></div>
-                    <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center justify-between mb-6 pr-28">
                       <span className="px-3 py-1 bg-white/5 text-sky-400 text-[9px] font-mono font-bold uppercase rounded border border-white/10 tracking-widest">
                         {item.tipo}
                       </span>
@@ -328,7 +414,7 @@ export default function App() {
                         {item.archivo_nombre || 'Ver adjunto'}
                       </a>
                     )}
-                    <div className="pt-6 border-t border-white/5 flex items-center justify-between">
+                    <div className="pt-6 border-t border-white/5 flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
                         <div className="size-8 bg-white/5 rounded flex items-center justify-center text-slate-500 border border-white/10">
                           <User size={14} />
@@ -338,7 +424,14 @@ export default function App() {
                           <p className={`text-[8px] font-mono uppercase mt-1 ${monoMutedClass}`}>Autor Verificado</p>
                         </div>
                       </div>
-                      <button className="text-[10px] font-bold text-sky-400 uppercase tracking-widest hover:text-white transition-colors">Detalles</button>
+                      <div className="flex items-center gap-3">
+                        {user?.id === item.autor_id && (
+                          <span className={`text-[9px] font-mono uppercase tracking-widest ${monoMutedClass}`}>
+                            {item.estado}
+                          </span>
+                        )}
+                        <button className="text-[10px] font-bold text-sky-400 uppercase tracking-widest hover:text-white transition-colors">Detalles</button>
+                      </div>
                     </div>
                   </motion.div>
                 )) : (
@@ -451,8 +544,12 @@ export default function App() {
                     <Layout size={24} className="text-sky-400" />
                   </div>
                   <div>
-                    <h2 className={`text-2xl font-bold tracking-tight leading-none ${titleClass}`}>Nueva Publicación</h2>
-                    <p className={`text-[10px] font-mono uppercase tracking-[0.2em] mt-2 ${monoMutedClass}`}>Módulo de Publicación v1.0.4</p>
+                    <h2 className={`text-2xl font-bold tracking-tight leading-none ${titleClass}`}>
+                      {isEditing ? 'Editar Publicación' : 'Nueva Publicación'}
+                    </h2>
+                    <p className={`text-[10px] font-mono uppercase tracking-[0.2em] mt-2 ${monoMutedClass}`}>
+                      {isEditing ? 'Módulo de Edición v1.0.4' : 'Módulo de Publicación v1.0.4'}
+                    </p>
                   </div>
                 </div>
 
@@ -507,6 +604,28 @@ export default function App() {
                         <p className={`text-[10px] font-mono uppercase tracking-wide ${monoMutedClass}`}>
                           Opcional. Formatos: PDF, JPG, PNG, WebP, MP3, WAV o MP4. Límite: 20 MB.
                         </p>
+                        {currentAttachment && !removeAttachment && (
+                          <a
+                            href={currentAttachment.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-sky-400 hover:text-white transition-colors"
+                          >
+                            <FileText size={14} />
+                            {currentAttachment.name}
+                          </a>
+                        )}
+                        {currentAttachment && (
+                          <label className={`flex items-center gap-2 text-[10px] font-mono uppercase tracking-wide ${monoMutedClass}`}>
+                            <input
+                              type="checkbox"
+                              checked={removeAttachment}
+                              onChange={(e) => setRemoveAttachment(e.target.checked)}
+                              className="accent-sky-500"
+                            />
+                            Quitar adjunto actual
+                          </label>
+                        )}
                       </div>
                     </div>
 
@@ -528,11 +647,14 @@ export default function App() {
                       type="submit"
                       className="flex-grow py-5 bg-sky-600 text-white font-bold uppercase tracking-widest text-xs rounded hover:bg-sky-500 transition-all shadow-lg shadow-sky-600/20 active:scale-[0.99]"
                     >
-                      Autenticar y Publicar
+                      {isEditing ? 'Guardar Cambios' : 'Autenticar y Publicar'}
                     </button>
                     <button 
                       type="button"
-                      onClick={() => setView('home')}
+                      onClick={() => {
+                        resetContentForm();
+                        setView('home');
+                      }}
                       className={`px-10 py-5 font-bold uppercase tracking-widest text-xs rounded border transition-all ${ghostButtonClass}`}
                     >
                       Cancelar
