@@ -6,9 +6,32 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
+:root {
+  --app-bg: #0a0a0b;
+  --app-text: #cbd5e1;
+  --scrollbar-track: #0a0a0b;
+  --scrollbar-thumb: #27272a;
+  --scrollbar-thumb-hover: #3f3f46;
+}
+
+:root[data-theme='light'] {
+  --app-bg: #f3f6fb;
+  --app-text: #1e293b;
+  --scrollbar-track: #e2e8f0;
+  --scrollbar-thumb: #94a3b8;
+  --scrollbar-thumb-hover: #64748b;
+}
+
 @layer base {
+  html {
+    background: var(--app-bg);
+  }
+
   body {
-    @apply antialiased bg-[#0A0A0B] text-slate-300;
+    @apply antialiased;
+    background: var(--app-bg);
+    color: var(--app-text);
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 }
 
@@ -26,17 +49,16 @@
   overflow: hidden;
 }
 
-/* Custom scrollbar for dark theme */
 ::-webkit-scrollbar {
   width: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #0A0A0B;
+  background: var(--scrollbar-track);
 }
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: var(--scrollbar-thumb-hover);
 }

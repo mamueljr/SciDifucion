@@ -9,6 +9,8 @@ import {
   User, 
   Lock, 
   Search, 
+  Sun,
+  Moon,
   PlusCircle, 
   LogOut, 
   Database, 
@@ -43,6 +45,11 @@ interface ContentItem {
 const API_PREFIX = 'api';
 
 export default function App() {
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window === 'undefined') return 'dark';
+    const storedTheme = window.localStorage.getItem('scidifusion-theme');
+    return storedTheme === 'light' ? 'light' : 'dark';
+  });
   const [user, setUser] = useState<UserInfo | null>(null);
   const [view, setView] = useState<'home' | 'login' | 'register' | 'admin' | 'create'>('home');
   const [content, setContent] = useState<ContentItem[]>([]);
@@ -60,6 +67,28 @@ export default function App() {
   const [typeId, setTypeId] = useState(1);
   const [status, setStatus] = useState<'publicado' | 'borrador'>('publicado');
   const [file, setFile] = useState<File | null>(null);
+  const isDark = theme === 'dark';
+
+  const shellClass = isDark ? 'bg-[#0A0A0B] text-slate-300' : 'bg-[#f3f6fb] text-slate-800';
+  const headerClass = isDark ? 'bg-[#111114] border-white/10' : 'bg-white/90 border-slate-200 shadow-sm';
+  const panelClass = isDark ? 'bg-[#111114] border-white/10' : 'bg-white border-slate-200 shadow-[0_12px_40px_rgba(15,23,42,0.08)]';
+  const panelSoftClass = isDark ? 'bg-[#0D0D10] border-white/10' : 'bg-slate-50 border-slate-200';
+  const titleClass = isDark ? 'text-white' : 'text-slate-900';
+  const textClass = isDark ? 'text-slate-300' : 'text-slate-700';
+  const mutedClass = isDark ? 'text-slate-500' : 'text-slate-500';
+  const monoMutedClass = isDark ? 'text-slate-500' : 'text-slate-600';
+  const inputClass = isDark
+    ? 'bg-[#0D0D10] border-white/10 text-white focus:border-sky-500'
+    : 'bg-white border-slate-300 text-slate-900 focus:border-sky-500';
+  const ghostButtonClass = isDark
+    ? 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'
+    : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200';
+  const statPanelClass = isDark ? 'bg-[#111114] border-white/5' : 'bg-white border-slate-200 shadow-[0_12px_32px_rgba(15,23,42,0.06)]';
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem('scidifusion-theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     checkAuth();
@@ -161,12 +190,12 @@ export default function App() {
   };
 
   if (loading) return (
-    <div className="h-screen bg-[#0A0A0B] flex flex-col items-center justify-center font-mono text-sky-500 gap-4">
+    <div className={`h-screen flex flex-col items-center justify-center font-mono text-sky-500 gap-4 ${shellClass}`}>
       <div className="flex items-center gap-2">
         <div className="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></div>
         <span className="uppercase tracking-[0.3em] text-xs">Iniciando Sistema</span>
       </div>
-      <div className="w-48 h-1 bg-white/5 rounded-full overflow-hidden">
+      <div className={`w-48 h-1 rounded-full overflow-hidden ${isDark ? 'bg-white/5' : 'bg-slate-200'}`}>
         <motion.div 
           initial={{ x: "-100%" }}
           animate={{ x: "100%" }}
@@ -178,36 +207,44 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-[#0A0A0B] font-sans text-slate-300">
+    <div className={`min-h-screen font-sans transition-colors duration-300 ${shellClass}`}>
       {/* Header */}
-      <header className="bg-[#111114] border-b border-white/10 sticky top-0 z-50">
+      <header className={`sticky top-0 z-50 border-b transition-colors duration-300 ${headerClass}`}>
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('home')}>
             <div className="bg-sky-500 p-1.5 rounded-lg shadow-lg shadow-sky-500/20">
               <BookOpen className="text-white size-6" />
             </div>
             <div>
-              <span className="text-sm font-bold tracking-widest text-white uppercase block leading-none">SciDifusión</span>
+              <span className={`text-sm font-bold tracking-widest uppercase block leading-none ${titleClass}`}>SciDifusión</span>
               <span className="text-[9px] text-sky-400 font-mono uppercase tracking-tighter">Plataforma SciDifusión v1.0.4</span>
             </div>
           </div>
 
-          <nav className="hidden md:flex items-center gap-8 text-[11px] font-mono uppercase tracking-wider text-slate-500">
+          <nav className={`hidden md:flex items-center gap-8 text-[11px] font-mono uppercase tracking-wider ${monoMutedClass}`}>
             <button onClick={() => setView('home')} className="hover:text-sky-400 transition-colors cursor-pointer">Repositorio</button>
             <button className="hover:text-sky-400 transition-colors cursor-pointer">Sala Virtual</button>
             <button className="hover:text-sky-400 transition-colors cursor-pointer">Directorio</button>
           </nav>
 
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setTheme(isDark ? 'light' : 'dark')}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-colors ${ghostButtonClass}`}
+              title={isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+            >
+              {isDark ? <Sun size={14} /> : <Moon size={14} />}
+              <span className="hidden sm:inline">{isDark ? 'Tema Claro' : 'Tema Oscuro'}</span>
+            </button>
             {user ? (
               <div className="flex items-center gap-3">
                 <div className="text-right hidden sm:block">
-                  <p className="text-xs font-bold text-white uppercase tracking-tight">{user.nombre}</p>
+                  <p className={`text-xs font-bold uppercase tracking-tight ${titleClass}`}>{user.nombre}</p>
                   <p className="text-[9px] uppercase tracking-widest text-sky-400 font-mono font-bold">{user.role}</p>
                 </div>
                 <button 
                   onClick={handleLogout}
-                  className="p-2 hover:bg-white/5 rounded-lg transition-colors text-slate-500 group border border-white/5"
+                  className={`p-2 rounded-lg transition-colors group border ${ghostButtonClass}`}
                   title="Cerrar sesión"
                 >
                   <LogOut size={18} className="group-hover:text-red-400" />
@@ -217,7 +254,7 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <button 
                   onClick={() => setView('login')}
-                  className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-colors"
+                  className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-colors ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'}`}
                 >
                   Login
                 </button>
@@ -244,8 +281,8 @@ export default function App() {
             >
               <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-4">
                 <div>
-                  <h1 className="text-3xl font-bold text-white tracking-tight">Repositorio Científico</h1>
-                  <p className="text-slate-500 mt-1 max-w-xl">Acceso centralizado a hallazgos académicos y documentación técnica verificada por la arquitectura de red SciDifusión.</p>
+                  <h1 className={`text-3xl font-bold tracking-tight ${titleClass}`}>Repositorio Científico</h1>
+                  <p className={`mt-1 max-w-xl ${mutedClass}`}>Acceso centralizado a hallazgos académicos y documentación técnica verificada por la arquitectura de red SciDifusión.</p>
                 </div>
                 {(user?.role === 'admin' || user?.role === 'investigador') && (
                   <button 
@@ -263,21 +300,21 @@ export default function App() {
                   <motion.div 
                     layoutId={`content-${item.id}`}
                     key={item.id}
-                    className="bg-[#111114] p-8 rounded border border-white/10 hover:border-sky-500/50 transition-all group flex flex-col h-full relative overflow-hidden"
+                    className={`p-8 rounded border hover:border-sky-500/50 transition-all group flex flex-col h-full relative overflow-hidden ${panelClass}`}
                   >
                     <div className="absolute top-0 left-0 w-1 h-full bg-sky-500/30 group-hover:bg-sky-500 transition-colors"></div>
                     <div className="flex items-center justify-between mb-6">
                       <span className="px-3 py-1 bg-white/5 text-sky-400 text-[9px] font-mono font-bold uppercase rounded border border-white/10 tracking-widest">
                         {item.tipo}
                       </span>
-                      <time className="text-[9px] text-slate-500 font-mono uppercase tracking-tighter">
+                      <time className={`text-[9px] font-mono uppercase tracking-tighter ${monoMutedClass}`}>
                         FECHA: {new Date(item.created_at).toISOString().split('T')[0]}
                       </time>
                     </div>
-                    <h3 className="text-lg font-bold text-white group-hover:text-sky-400 transition-colors mb-4 tracking-tight leading-tight">
+                    <h3 className={`text-lg font-bold group-hover:text-sky-400 transition-colors mb-4 tracking-tight leading-tight ${titleClass}`}>
                       {item.titulo}
                     </h3>
-                    <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
+                    <p className={`text-sm leading-relaxed mb-8 flex-grow ${textClass}`}>
                       {item.cuerpo}
                     </p>
                     {item.archivo_url && (
@@ -297,17 +334,17 @@ export default function App() {
                           <User size={14} />
                         </div>
                         <div>
-                          <p className="text-[10px] font-bold text-slate-300 leading-none uppercase tracking-wide">{item.autor}</p>
-                          <p className="text-[8px] text-slate-500 font-mono uppercase mt-1">Autor Verificado</p>
+                          <p className={`text-[10px] font-bold leading-none uppercase tracking-wide ${textClass}`}>{item.autor}</p>
+                          <p className={`text-[8px] font-mono uppercase mt-1 ${monoMutedClass}`}>Autor Verificado</p>
                         </div>
                       </div>
                       <button className="text-[10px] font-bold text-sky-400 uppercase tracking-widest hover:text-white transition-colors">Detalles</button>
                     </div>
                   </motion.div>
                 )) : (
-                  <div className="col-span-full py-32 bg-[#0D0D10] border border-dashed border-white/10 rounded flex flex-col items-center justify-center text-slate-600">
+                  <div className={`col-span-full py-32 border border-dashed rounded flex flex-col items-center justify-center ${panelSoftClass} ${isDark ? 'text-slate-600' : 'text-slate-500'}`}>
                     <Database size={48} className="mb-4 opacity-20" />
-                    <p className="font-mono text-xs uppercase tracking-widest text-slate-500">No se encontraron resultados</p>
+                    <p className={`font-mono text-xs uppercase tracking-widest ${monoMutedClass}`}>No se encontraron resultados</p>
                   </div>
                 )}
               </div>
@@ -322,37 +359,37 @@ export default function App() {
               exit={{ opacity: 0, scale: 0.95 }}
               className="max-w-md mx-auto mt-12"
             >
-              <div className="bg-[#111114] p-10 rounded border border-white/10 shadow-2xl relative overflow-hidden">
+              <div className={`p-10 rounded border shadow-2xl relative overflow-hidden ${panelClass}`}>
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-500 to-indigo-500"></div>
                 <div className="flex justify-center mb-8">
                   <div className="bg-sky-500/10 p-5 rounded-2xl border border-sky-500/30">
                     {view === 'login' ? <Lock className="text-sky-400 size-10" /> : <User className="text-sky-400 size-10" />}
                   </div>
                 </div>
-                <h2 className="text-2xl font-bold text-center mb-2 text-white">
+                <h2 className={`text-2xl font-bold text-center mb-2 ${titleClass}`}>
                   {view === 'login' ? 'Inicio de Sesión' : 'Crear Cuenta'}
                 </h2>
-                <p className="text-center text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-10">Acceso Seguro al Sistema</p>
+                <p className={`text-center text-[10px] font-mono uppercase tracking-widest mb-10 ${monoMutedClass}`}>Acceso Seguro al Sistema</p>
                 
                 <form onSubmit={view === 'login' ? handleLogin : handleRegister} className="space-y-6">
                   {view === 'register' && (
                     <>
                       <div className="space-y-2">
-                        <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Nombre Completo</label>
+                        <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ml-1 ${monoMutedClass}`}>Nombre Completo</label>
                         <input 
                           type="text" 
                           required 
                           value={nombre}
                           onChange={(e) => setNombre(e.target.value)}
-                          className="w-full px-4 py-3 bg-[#0D0D10] border border-white/10 rounded text-white focus:border-sky-500 outline-none transition-all font-mono text-xs"
+                          className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`}
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Rol Asignado</label>
+                        <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ml-1 ${monoMutedClass}`}>Rol Asignado</label>
                         <select 
                           value={role}
                           onChange={(e) => setRole(e.target.value)}
-                          className="w-full px-4 py-3 bg-[#0D0D10] border border-white/10 rounded text-white focus:border-sky-500 outline-none transition-all font-mono text-xs appearance-none"
+                          className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs appearance-none ${inputClass}`}
                         >
                           <option value="publico">Público General</option>
                           <option value="investigador">Investigador</option>
@@ -361,23 +398,23 @@ export default function App() {
                     </>
                   )}
                   <div className="space-y-2">
-                    <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Correo Electrónico</label>
+                    <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ml-1 ${monoMutedClass}`}>Correo Electrónico</label>
                     <input 
                       type="email" 
                       required 
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-4 py-3 bg-[#0D0D10] border border-white/10 rounded text-white focus:border-sky-500 outline-none transition-all font-mono text-xs"
+                      className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`}
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Contraseña</label>
+                    <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ml-1 ${monoMutedClass}`}>Contraseña</label>
                     <input 
                       type="password" 
                       required 
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full px-4 py-3 bg-[#0D0D10] border border-white/10 rounded text-white focus:border-sky-500 outline-none transition-all font-mono text-xs"
+                      className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`}
                     />
                   </div>
                   <button 
@@ -388,7 +425,7 @@ export default function App() {
                   </button>
                 </form>
                 
-                <p className="text-center mt-8 text-[11px] font-mono text-slate-500 uppercase">
+                <p className={`text-center mt-8 text-[11px] font-mono uppercase ${monoMutedClass}`}>
                   {view === 'login' ? (
                     <>¿No tienes cuenta? <button onClick={() => setView('register')} className="text-sky-400 font-bold hover:underline">Crear nueva cuenta</button></>
                   ) : (
@@ -407,15 +444,15 @@ export default function App() {
               exit={{ opacity: 0, y: 20 }}
               className="max-w-4xl mx-auto"
             >
-              <div className="bg-[#111114] p-10 rounded border border-white/10 shadow-2xl relative overflow-hidden">
+              <div className={`p-10 rounded border shadow-2xl relative overflow-hidden ${panelClass}`}>
                 <div className="absolute top-0 left-0 w-1 h-full bg-sky-500"></div>
                 <div className="flex items-center gap-4 mb-10 border-b border-white/5 pb-8">
                   <div className="bg-sky-500/10 p-3 rounded border border-sky-500/30">
                     <Layout size={24} className="text-sky-400" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-white tracking-tight leading-none">Nueva Publicación</h2>
-                    <p className="text-[10px] font-mono text-slate-500 uppercase tracking-[0.2em] mt-2">Módulo de Publicación v1.0.4</p>
+                    <h2 className={`text-2xl font-bold tracking-tight leading-none ${titleClass}`}>Nueva Publicación</h2>
+                    <p className={`text-[10px] font-mono uppercase tracking-[0.2em] mt-2 ${monoMutedClass}`}>Módulo de Publicación v1.0.4</p>
                   </div>
                 </div>
 
@@ -423,21 +460,21 @@ export default function App() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-6">
                       <div className="space-y-2">
-                        <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Título de la Publicación</label>
+                        <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ml-1 ${monoMutedClass}`}>Título de la Publicación</label>
                         <input 
                           type="text" 
                           required 
                           value={title}
                           onChange={(e) => setTitle(e.target.value)}
-                          className="w-full px-4 py-4 bg-[#0D0D10] border border-white/10 rounded text-white focus:border-sky-500 outline-none transition-all font-mono text-xs"
+                          className={`w-full px-4 py-4 border rounded outline-none transition-all font-mono text-xs ${inputClass}`}
                           placeholder="Tema de investigación..."
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Tipo de Contenido</label>
+                          <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ml-1 ${monoMutedClass}`}>Tipo de Contenido</label>
                           <select 
-                            className="w-full px-4 py-4 bg-[#0D0D10] border border-white/10 rounded text-white focus:border-sky-500 outline-none transition-all font-mono text-xs appearance-none"
+                            className={`w-full px-4 py-4 border rounded outline-none transition-all font-mono text-xs appearance-none ${inputClass}`}
                             value={typeId}
                             onChange={(e) => setTypeId(Number(e.target.value))}
                           >
@@ -447,11 +484,11 @@ export default function App() {
                           </select>
                         </div>
                         <div className="space-y-2">
-                          <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Estado de Publicación</label>
+                          <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ml-1 ${monoMutedClass}`}>Estado de Publicación</label>
                           <select
                             value={status}
                             onChange={(e) => setStatus(e.target.value as 'publicado' | 'borrador')}
-                            className="w-full px-4 py-4 bg-[#0D0D10] border border-white/10 rounded text-white focus:border-sky-500 outline-none transition-all font-mono text-xs appearance-none"
+                            className={`w-full px-4 py-4 border rounded outline-none transition-all font-mono text-xs appearance-none ${inputClass}`}
                           >
                             <option value="publicado">Publicado</option>
                             <option value="borrador">Borrador Privado</option>
@@ -460,27 +497,27 @@ export default function App() {
                       </div>
 
                       <div className="space-y-2">
-                        <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Archivo Adjunto</label>
+                        <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ml-1 ${monoMutedClass}`}>Archivo Adjunto</label>
                         <input
                           type="file"
                           accept=".pdf,image/png,image/jpeg,image/webp,audio/mpeg,audio/wav,video/mp4"
                           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                          className="w-full px-4 py-3 bg-[#0D0D10] border border-white/10 rounded text-slate-300 focus:border-sky-500 outline-none transition-all font-mono text-xs file:mr-4 file:border-0 file:bg-sky-500/10 file:px-3 file:py-2 file:text-[10px] file:font-bold file:uppercase file:tracking-widest file:text-sky-400"
+                          className={`w-full px-4 py-3 border rounded focus:border-sky-500 outline-none transition-all font-mono text-xs file:mr-4 file:border-0 file:bg-sky-500/10 file:px-3 file:py-2 file:text-[10px] file:font-bold file:uppercase file:tracking-widest file:text-sky-400 ${inputClass}`}
                         />
-                        <p className="text-[10px] text-slate-500 font-mono uppercase tracking-wide">
+                        <p className={`text-[10px] font-mono uppercase tracking-wide ${monoMutedClass}`}>
                           Opcional. Formatos: PDF, JPG, PNG, WebP, MP3, WAV o MP4. Límite: 20 MB.
                         </p>
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Cuerpo del Contenido</label>
+                      <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ml-1 ${monoMutedClass}`}>Cuerpo del Contenido</label>
                       <textarea 
                         rows={8}
                         required
                         value={body}
                         onChange={(e) => setBody(e.target.value)}
-                        className="w-full px-4 py-4 bg-[#0D0D10] border border-white/10 rounded text-white focus:border-sky-500 outline-none transition-all font-mono text-xs h-full min-h-[180px]"
+                        className={`w-full px-4 py-4 border rounded outline-none transition-all font-mono text-xs h-full min-h-[180px] ${inputClass}`}
                         placeholder="Escribe los hallazgos detallados aquí..."
                       ></textarea>
                     </div>
@@ -496,7 +533,7 @@ export default function App() {
                     <button 
                       type="button"
                       onClick={() => setView('home')}
-                      className="px-10 py-5 bg-white/5 text-slate-400 font-bold uppercase tracking-widest text-xs rounded border border-white/10 hover:bg-white/10 transition-all"
+                      className={`px-10 py-5 font-bold uppercase tracking-widest text-xs rounded border transition-all ${ghostButtonClass}`}
                     >
                       Cancelar
                     </button>
@@ -509,23 +546,23 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-[#0A0A0B] border-t border-white/10 pt-20 pb-10">
+      <footer className={`border-t pt-20 pb-10 transition-colors duration-300 ${isDark ? 'bg-[#0A0A0B] border-white/10' : 'bg-[#eaf0f7] border-slate-200'}`}>
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-12 text-[11px] font-mono">
           <div className="md:col-span-1">
             <div className="flex items-center gap-3 mb-6">
               <div className="bg-sky-500 p-1.5 rounded">
                  <BookOpen className="text-white size-4" />
               </div>
-              <span className="text-sm font-bold text-white uppercase tracking-[0.2em]">SciDifusión</span>
+              <span className={`text-sm font-bold uppercase tracking-[0.2em] ${titleClass}`}>SciDifusión</span>
             </div>
-            <p className="text-slate-500 leading-relaxed uppercase">
+            <p className={`leading-relaxed uppercase ${mutedClass}`}>
               Repositorio distribuido para el intercambio de datos científicos de alta fidelidad.
             </p>
           </div>
           
           <div className="space-y-4">
-            <h4 className="font-bold text-white uppercase tracking-widest text-[10px] mb-6">Arquitectura del Sistema</h4>
-            <ul className="space-y-3 text-slate-500 uppercase">
+            <h4 className={`font-bold uppercase tracking-widest text-[10px] mb-6 ${titleClass}`}>Arquitectura del Sistema</h4>
+            <ul className={`space-y-3 uppercase ${mutedClass}`}>
               <li className="flex items-center gap-2"><ProtectIcon /> RBAC Engine: Active</li>
               <li className="flex items-center gap-2"><ProtectIcon /> API Layer: REST/JSON</li>
               <li className="flex items-center gap-2"><ProtectIcon /> DB Instance: MySQL-8</li>
@@ -534,30 +571,30 @@ export default function App() {
           </div>
 
           <div className="space-y-4">
-            <h4 className="font-bold text-white uppercase tracking-widest text-[10px] mb-6">Nodos de Red</h4>
-            <ul className="space-y-3 text-slate-500 uppercase">
+            <h4 className={`font-bold uppercase tracking-widest text-[10px] mb-6 ${titleClass}`}>Nodos de Red</h4>
+            <ul className={`space-y-3 uppercase ${mutedClass}`}>
               <li className="flex items-center gap-2 hover:text-sky-400 transition-colors cursor-pointer"><div className="w-1 h-1 bg-sky-500 rounded-full"></div> Virtual Labs</li>
               <li className="flex items-center gap-2 hover:text-sky-400 transition-colors cursor-pointer"><div className="w-1 h-1 bg-sky-500 rounded-full"></div> Peer Review Console</li>
               <li className="flex items-center gap-2 hover:text-sky-400 transition-colors cursor-pointer"><div className="w-1 h-1 bg-sky-500 rounded-full"></div> Archive Index</li>
             </ul>
           </div>
 
-          <div className="bg-[#111114] p-6 rounded border border-white/5 space-y-6">
+          <div className={`p-6 rounded border space-y-6 ${statPanelClass}`}>
              <div>
-               <div className="text-[9px] uppercase text-slate-500 mb-2">Latencia del Servidor</div>
-               <div className="text-2xl font-bold text-white">12ms <span className="text-[10px] font-normal text-emerald-500">OPERATIONAL</span></div>
-               <div className="w-full bg-white/5 h-1 mt-3 rounded-full overflow-hidden">
+               <div className={`text-[9px] uppercase mb-2 ${monoMutedClass}`}>Latencia del Servidor</div>
+               <div className={`text-2xl font-bold ${titleClass}`}>12ms <span className="text-[10px] font-normal text-emerald-500">OPERATIONAL</span></div>
+               <div className={`w-full h-1 mt-3 rounded-full overflow-hidden ${isDark ? 'bg-white/5' : 'bg-slate-200'}`}>
                  <div className="bg-sky-500 h-full w-[94%] shadow-[0_0_8px_rgba(14,165,233,0.5)]"></div>
                </div>
              </div>
              <div>
-               <div className="text-[9px] uppercase text-slate-500 mb-2">Disponibilidad del Sistema</div>
-               <div className="text-2xl font-bold text-white">99.98%</div>
+               <div className={`text-[9px] uppercase mb-2 ${monoMutedClass}`}>Disponibilidad del Sistema</div>
+               <div className={`text-2xl font-bold ${titleClass}`}>99.98%</div>
              </div>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 mt-20 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-mono text-slate-600">
+        <div className={`max-w-7xl mx-auto px-4 mt-20 pt-8 border-t flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-mono ${isDark ? 'border-white/5 text-slate-600' : 'border-slate-200 text-slate-500'}`}>
            <div className="flex items-center gap-4">
               <span>© {new Date().getFullYear()} NEXUS SCI PLATFORM</span>
               <span className="flex items-center gap-1.5"><div className="size-1.5 bg-emerald-500 rounded-full animate-pulse"></div> TODOS LOS SISTEMAS EN LÍNEA</span>
