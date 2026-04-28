@@ -144,7 +144,7 @@ export default function App() {
     <div className="h-screen bg-[#0A0A0B] flex flex-col items-center justify-center font-mono text-sky-500 gap-4">
       <div className="flex items-center gap-2">
         <div className="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></div>
-        <span className="uppercase tracking-[0.3em] text-xs">Initializing Nexus Core</span>
+        <span className="uppercase tracking-[0.3em] text-xs">Iniciando Sistema</span>
       </div>
       <div className="w-48 h-1 bg-white/5 rounded-full overflow-hidden">
         <motion.div 
@@ -168,7 +168,7 @@ export default function App() {
             </div>
             <div>
               <span className="text-sm font-bold tracking-widest text-white uppercase block leading-none">SciDifusión</span>
-              <span className="text-[9px] text-sky-400 font-mono uppercase tracking-tighter">Nexus Platform v1.0.4</span>
+              <span className="text-[9px] text-sky-400 font-mono uppercase tracking-tighter">Plataforma SciDifusión v1.0.4</span>
             </div>
           </div>
 
@@ -251,7 +251,7 @@ export default function App() {
                         {item.tipo}
                       </span>
                       <time className="text-[9px] text-slate-500 font-mono uppercase tracking-tighter">
-                        TS: {new Date(item.created_at).toISOString().split('T')[0]}
+                        FECHA: {new Date(item.created_at).toISOString().split('T')[0]}
                       </time>
                     </div>
                     <h3 className="text-lg font-bold text-white group-hover:text-sky-400 transition-colors mb-4 tracking-tight leading-tight">
@@ -267,7 +267,7 @@ export default function App() {
                         </div>
                         <div>
                           <p className="text-[10px] font-bold text-slate-300 leading-none uppercase tracking-wide">{item.autor}</p>
-                          <p className="text-[8px] text-slate-500 font-mono uppercase mt-1">Verified Author</p>
+                          <p className="text-[8px] text-slate-500 font-mono uppercase mt-1">Autor Verificado</p>
                         </div>
                       </div>
                       <button className="text-[10px] font-bold text-sky-400 uppercase tracking-widest hover:text-white transition-colors">Detalles</button>
@@ -276,7 +276,7 @@ export default function App() {
                 )) : (
                   <div className="col-span-full py-32 bg-[#0D0D10] border border-dashed border-white/10 rounded flex flex-col items-center justify-center text-slate-600">
                     <Database size={48} className="mb-4 opacity-20" />
-                    <p className="font-mono text-xs uppercase tracking-widest text-slate-500">Query returned zero results</p>
+                    <p className="font-mono text-xs uppercase tracking-widest text-slate-500">No se encontraron resultados</p>
                   </div>
                 )}
               </div>
@@ -299,15 +299,15 @@ export default function App() {
                   </div>
                 </div>
                 <h2 className="text-2xl font-bold text-center mb-2 text-white">
-                  {view === 'login' ? 'Authentication Root' : 'Initialize Account'}
+                  {view === 'login' ? 'Inicio de Sesión' : 'Crear Cuenta'}
                 </h2>
-                <p className="text-center text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-10">Secure Gateway Access Protocol</p>
+                <p className="text-center text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-10">Acceso Seguro al Sistema</p>
                 
                 <form onSubmit={view === 'login' ? handleLogin : handleRegister} className="space-y-6">
                   {view === 'register' && (
                     <>
                       <div className="space-y-2">
-                        <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Identity Name</label>
+                        <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Nombre Completo</label>
                         <input 
                           type="text" 
                           required 
@@ -317,7 +317,7 @@ export default function App() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Assigned Role</label>
+                        <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Rol Asignado</label>
                         <select 
                           value={role}
                           onChange={(e) => setRole(e.target.value)}
@@ -331,7 +331,7 @@ export default function App() {
                     </>
                   )}
                   <div className="space-y-2">
-                    <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Email Interface</label>
+                    <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Correo Electrónico</label>
                     <input 
                       type="email" 
                       required 
@@ -341,7 +341,7 @@ export default function App() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Access Cipher</label>
+                    <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Contraseña</label>
                     <input 
                       type="password" 
                       required 
@@ -354,15 +354,15 @@ export default function App() {
                     type="submit"
                     className="w-full py-4 bg-sky-600 text-white font-bold uppercase tracking-widest text-xs rounded hover:bg-sky-500 transition-all shadow-lg shadow-sky-600/20 active:scale-[0.99]"
                   >
-                    {view === 'login' ? 'Execute Login' : 'Finalize Init'}
+                    {view === 'login' ? 'Ingresar' : 'Registrarse'}
                   </button>
                 </form>
                 
                 <p className="text-center mt-8 text-[11px] font-mono text-slate-500 uppercase">
                   {view === 'login' ? (
-                    <>No active record? <button onClick={() => setView('register')} className="text-sky-400 font-bold hover:underline">Register New Entity</button></>
+                    <>¿No tienes cuenta? <button onClick={() => setView('register')} className="text-sky-400 font-bold hover:underline">Crear nueva cuenta</button></>
                   ) : (
-                    <>Record exists? <button onClick={() => setView('login')} className="text-sky-400 font-bold hover:underline">Return to Root</button></>
+                    <>¿Ya tienes cuenta? <button onClick={() => setView('login')} className="text-sky-400 font-bold hover:underline">Volver al Login</button></>
                   )}
                 </p>
               </div>
@@ -385,7 +385,7 @@ export default function App() {
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-white tracking-tight leading-none">Nueva Publicación</h2>
-                    <p className="text-[10px] font-mono text-slate-500 uppercase tracking-[0.2em] mt-2">Data Injection Module v1.0.4</p>
+                    <p className="text-[10px] font-mono text-slate-500 uppercase tracking-[0.2em] mt-2">Módulo de Publicación v1.0.4</p>
                   </div>
                 </div>
 
@@ -393,19 +393,19 @@ export default function App() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-6">
                       <div className="space-y-2">
-                        <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Entity Header</label>
+                        <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Título de la Publicación</label>
                         <input 
                           type="text" 
                           required 
                           value={title}
                           onChange={(e) => setTitle(e.target.value)}
                           className="w-full px-4 py-4 bg-[#0D0D10] border border-white/10 rounded text-white focus:border-sky-500 outline-none transition-all font-mono text-xs"
-                          placeholder="Research Subject..."
+                          placeholder="Tema de investigación..."
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Type ID</label>
+                          <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Tipo de Contenido</label>
                           <select 
                             className="w-full px-4 py-4 bg-[#0D0D10] border border-white/10 rounded text-white focus:border-sky-500 outline-none transition-all font-mono text-xs appearance-none"
                             value={typeId}
@@ -417,24 +417,24 @@ export default function App() {
                           </select>
                         </div>
                         <div className="space-y-2">
-                          <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Deploy State</label>
+                          <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Estado de Publicación</label>
                           <select className="w-full px-4 py-4 bg-[#0D0D10] border border-white/10 rounded text-white focus:border-sky-500 outline-none transition-all font-mono text-xs appearance-none">
-                            <option value="publicado">Live Index</option>
-                            <option value="borrador">Protected Sandbox</option>
+                            <option value="publicado">Publicado</option>
+                            <option value="borrador">Borrador Privado</option>
                           </select>
                         </div>
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Data Payload (Cuerpo)</label>
+                      <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Cuerpo del Contenido</label>
                       <textarea 
                         rows={8}
                         required
                         value={body}
                         onChange={(e) => setBody(e.target.value)}
                         className="w-full px-4 py-4 bg-[#0D0D10] border border-white/10 rounded text-white focus:border-sky-500 outline-none transition-all font-mono text-xs h-full min-h-[180px]"
-                        placeholder="Detailed technical findings..."
+                        placeholder="Escribe los hallazgos detallados aquí..."
                       ></textarea>
                     </div>
                   </div>
@@ -444,14 +444,14 @@ export default function App() {
                       type="submit"
                       className="flex-grow py-5 bg-sky-600 text-white font-bold uppercase tracking-widest text-xs rounded hover:bg-sky-500 transition-all shadow-lg shadow-sky-600/20 active:scale-[0.99]"
                     >
-                      Authenticate & Dispatch
+                      Autenticar y Publicar
                     </button>
                     <button 
                       type="button"
                       onClick={() => setView('home')}
                       className="px-10 py-5 bg-white/5 text-slate-400 font-bold uppercase tracking-widest text-xs rounded border border-white/10 hover:bg-white/10 transition-all"
                     >
-                      Abort Task
+                      Cancelar
                     </button>
                   </div>
                 </form>
@@ -472,12 +472,12 @@ export default function App() {
               <span className="text-sm font-bold text-white uppercase tracking-[0.2em]">SciDifusión</span>
             </div>
             <p className="text-slate-500 leading-relaxed uppercase">
-              Distributed repository for high-fidelity scientific data exchange and academic synchronization.
+              Repositorio distribuido para el intercambio de datos científicos de alta fidelidad.
             </p>
           </div>
           
           <div className="space-y-4">
-            <h4 className="font-bold text-white uppercase tracking-widest text-[10px] mb-6">System Architecture</h4>
+            <h4 className="font-bold text-white uppercase tracking-widest text-[10px] mb-6">Arquitectura del Sistema</h4>
             <ul className="space-y-3 text-slate-500 uppercase">
               <li className="flex items-center gap-2"><ProtectIcon /> RBAC Engine: Active</li>
               <li className="flex items-center gap-2"><ProtectIcon /> API Layer: REST/JSON</li>
@@ -487,7 +487,7 @@ export default function App() {
           </div>
 
           <div className="space-y-4">
-            <h4 className="font-bold text-white uppercase tracking-widest text-[10px] mb-6">Network Nodes</h4>
+            <h4 className="font-bold text-white uppercase tracking-widest text-[10px] mb-6">Nodos de Red</h4>
             <ul className="space-y-3 text-slate-500 uppercase">
               <li className="flex items-center gap-2 hover:text-sky-400 transition-colors cursor-pointer"><div className="w-1 h-1 bg-sky-500 rounded-full"></div> Virtual Labs</li>
               <li className="flex items-center gap-2 hover:text-sky-400 transition-colors cursor-pointer"><div className="w-1 h-1 bg-sky-500 rounded-full"></div> Peer Review Console</li>
@@ -497,14 +497,14 @@ export default function App() {
 
           <div className="bg-[#111114] p-6 rounded border border-white/5 space-y-6">
              <div>
-               <div className="text-[9px] uppercase text-slate-500 mb-2">Core Service Latency</div>
+               <div className="text-[9px] uppercase text-slate-500 mb-2">Latencia del Servidor</div>
                <div className="text-2xl font-bold text-white">12ms <span className="text-[10px] font-normal text-emerald-500">OPERATIONAL</span></div>
                <div className="w-full bg-white/5 h-1 mt-3 rounded-full overflow-hidden">
                  <div className="bg-sky-500 h-full w-[94%] shadow-[0_0_8px_rgba(14,165,233,0.5)]"></div>
                </div>
              </div>
              <div>
-               <div className="text-[9px] uppercase text-slate-500 mb-2">Cluster Uptime</div>
+               <div className="text-[9px] uppercase text-slate-500 mb-2">Disponibilidad del Sistema</div>
                <div className="text-2xl font-bold text-white">99.98%</div>
              </div>
           </div>
@@ -513,7 +513,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 mt-20 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-mono text-slate-600">
            <div className="flex items-center gap-4">
               <span>© 2024 NEXUS SCI PLATFORM</span>
-              <span className="flex items-center gap-1.5"><div className="size-1.5 bg-emerald-500 rounded-full animate-pulse"></div> ALL SYSTEMS ONLINE</span>
+              <span className="flex items-center gap-1.5"><div className="size-1.5 bg-emerald-500 rounded-full animate-pulse"></div> TODOS LOS SISTEMAS EN LÍNEA</span>
            </div>
            <div className="flex gap-6 uppercase tracking-widest">
               <a href="#" className="hover:text-sky-400">Privacy Policy</a>
