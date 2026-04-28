@@ -131,6 +131,19 @@ CREATE TABLE IF NOT EXISTS `auditoria` (
     FOREIGN KEY (`usuario_id`) REFERENCES `usuarios`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
+-- 12. Perfil extendido de usuario
+CREATE TABLE IF NOT EXISTS `usuarios_perfiles` (
+    `usuario_id` BIGINT UNSIGNED NOT NULL,
+    `biografia` TEXT NULL,
+    `institucion` VARCHAR(255) NULL,
+    `telefono` VARCHAR(50) NULL,
+    `ubicacion` VARCHAR(255) NULL,
+    `sitio_web` VARCHAR(255) NULL,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`usuario_id`),
+    FOREIGN KEY (`usuario_id`) REFERENCES `usuarios`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Insertar Datos Iniciales Bésicos
 INSERT INTO `roles` (nombre, descripcion) VALUES 
 ('admin', 'Administrador total del sistema'),

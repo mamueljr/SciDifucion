@@ -30,6 +30,14 @@ interface UserInfo {
   nombre: string;
   email: string;
   role: string;
+  biografia?: string | null;
+  institucion?: string | null;
+  telefono?: string | null;
+  ubicacion?: string | null;
+  sitio_web?: string | null;
+  foto_nombre?: string | null;
+  foto_url?: string | null;
+  foto_mime_type?: string | null;
 }
 
 interface ContentItem {
@@ -57,6 +65,7 @@ export default function App() {
   });
   const [user, setUser] = useState<UserInfo | null>(null);
   const [view, setView] = useState<'home' | 'login' | 'register' | 'admin' | 'create'>('home');
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [content, setContent] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -75,6 +84,14 @@ export default function App() {
   const [editingContentId, setEditingContentId] = useState<number | null>(null);
   const [currentAttachment, setCurrentAttachment] = useState<{ name: string; url: string } | null>(null);
   const [removeAttachment, setRemoveAttachment] = useState(false);
+  const [profileName, setProfileName] = useState('');
+  const [profileBio, setProfileBio] = useState('');
+  const [profileInstitution, setProfileInstitution] = useState('');
+  const [profilePhone, setProfilePhone] = useState('');
+  const [profileLocation, setProfileLocation] = useState('');
+  const [profileWebsite, setProfileWebsite] = useState('');
+  const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
+  const [removeProfilePhoto, setRemoveProfilePhoto] = useState(false);
   const isDark = theme === 'dark';
   const isEditing = editingContentId !== null;
 
@@ -110,6 +127,7 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setUser(data);
+        syncProfileForm(data);
       }
     } catch (e) {
       console.error("Auth check failed", e);
@@ -138,8 +156,7 @@ export default function App() {
       body: JSON.stringify({ email, password })
     });
     if (res.ok) {
-      const data = await res.json();
-      setUser(data.user);
+      await checkAuth();
       setView('home');
       fetchContent();
     } else {
@@ -165,7 +182,19 @@ export default function App() {
   const handleLogout = async () => {
     await fetch(`${API_PREFIX}/auth/logout.php`, { method: 'POST' });
     setUser(null);
+    setIsProfileOpen(false);
     setView('home');
+  };
+
+  const syncProfileForm = (profile: UserInfo) => {
+    setProfileName(profile.nombre || '');
+    setProfileBio(profile.biografia || '');
+    setProfileInstitution(profile.institucion || '');
+    setProfilePhone(profile.telefono || '');
+    setProfileLocation(profile.ubicacion || '');
+    setProfileWebsite(profile.sitio_web || '');
+    setProfilePhoto(null);
+    setRemoveProfilePhoto(false);
   };
 
   const handleCreateContent = async (e: React.FormEvent) => {
@@ -253,6 +282,43 @@ export default function App() {
     alert(err.error || 'No se pudo eliminar la publicación');
   };
 
+  const handleOpenProfile = () => {
+    if (!user) return;
+    syncProfileForm(user);
+    setIsProfileOpen(true);
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append('nombre', profileName);
+    formData.append('biografia', profileBio);
+    formData.append('institucion', profileInstitution);
+    formData.append('telefono', profilePhone);
+    formData.append('ubicacion', profileLocation);
+    formData.append('sitio_web', profileWebsite);
+    formData.append('remove_photo', removeProfilePhoto ? '1' : '0');
+    if (profilePhoto) {
+      formData.append('foto', profilePhoto);
+    }
+
+    const res = await fetch(`${API_PREFIX}/auth/profile.php`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'No se pudo actualizar el perfil');
+      return;
+    }
+
+    setUser((prev) => (prev ? { ...prev, ...data.profile, role: prev.role } : prev));
+    syncProfileForm(data.profile);
+    setIsProfileOpen(false);
+    alert('Perfil actualizado');
+  };
+
   if (loading) return (
     <div className={`h-screen flex flex-col items-center justify-center font-mono text-sky-500 gap-4 ${shellClass}`}>
       <div className="flex items-center gap-2">
@@ -302,10 +368,27 @@ export default function App() {
             </button>
             {user ? (
               <div className="flex items-center gap-3">
-                <div className="text-right hidden sm:block">
-                  <p className={`text-xs font-bold uppercase tracking-tight ${titleClass}`}>{user.nombre}</p>
-                  <p className="text-[9px] uppercase tracking-widest text-sky-400 font-mono font-bold">{user.role}</p>
-                </div>
+                <button
+                  onClick={handleOpenProfile}
+                  className="flex items-center gap-3 text-left"
+                  title="Abrir perfil"
+                >
+                  {user.foto_url ? (
+                    <img
+                      src={user.foto_url}
+                      alt={user.nombre}
+                      className="size-10 rounded-full object-cover border border-sky-500/30"
+                    />
+                  ) : (
+                    <div className="size-10 rounded-full bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 font-bold">
+                      {user.nombre.slice(0, 1).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="text-right hidden sm:block">
+                    <p className={`text-xs font-bold uppercase tracking-tight hover:text-sky-400 transition-colors ${titleClass}`}>{user.nombre}</p>
+                    <p className="text-[9px] uppercase tracking-widest text-sky-400 font-mono font-bold">{user.role}</p>
+                  </div>
+                </button>
                 <button 
                   onClick={handleLogout}
                   className={`p-2 rounded-lg transition-colors group border ${ghostButtonClass}`}
@@ -666,6 +749,132 @@ export default function App() {
           )}
         </AnimatePresence>
       </main>
+
+      {user && isProfileOpen && (
+        <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className={`w-full max-w-3xl rounded-2xl border overflow-hidden ${panelClass}`}>
+            <div className="px-8 py-6 border-b border-white/10 flex items-center justify-between">
+              <div>
+                <h2 className={`text-2xl font-bold ${titleClass}`}>Perfil de Usuario</h2>
+                <p className={`text-[11px] font-mono uppercase tracking-widest mt-2 ${monoMutedClass}`}>Datos generales y foto de perfil</p>
+              </div>
+              <button
+                onClick={() => setIsProfileOpen(false)}
+                className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest rounded border transition-colors ${ghostButtonClass}`}
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="p-8 grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-8">
+              <div className={`rounded-2xl border p-6 flex flex-col items-center text-center ${panelSoftClass}`}>
+                {user.foto_url && !removeProfilePhoto && !profilePhoto ? (
+                  <img
+                    src={user.foto_url}
+                    alt={user.nombre}
+                    className="size-32 rounded-full object-cover border border-sky-500/30 mb-4"
+                  />
+                ) : profilePhoto ? (
+                  <div className="size-32 rounded-full bg-sky-500/10 border border-sky-500/30 mb-4 flex items-center justify-center text-sky-400 px-4 text-xs font-mono uppercase">
+                    Foto nueva seleccionada
+                  </div>
+                ) : (
+                  <div className="size-32 rounded-full bg-sky-500/10 border border-sky-500/30 mb-4 flex items-center justify-center text-sky-400 text-4xl font-bold">
+                    {profileName.slice(0, 1).toUpperCase() || 'U'}
+                  </div>
+                )}
+
+                <label className="w-full">
+                  <span className={`block text-[10px] font-mono font-bold uppercase tracking-widest mb-2 ${monoMutedClass}`}>Foto de Perfil</span>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={(e) => {
+                      setProfilePhoto(e.target.files?.[0] ?? null);
+                      if (e.target.files?.[0]) setRemoveProfilePhoto(false);
+                    }}
+                    className={`w-full px-3 py-3 border rounded outline-none transition-all font-mono text-xs file:mr-3 file:border-0 file:bg-sky-500/10 file:px-3 file:py-2 file:text-[10px] file:font-bold file:uppercase file:tracking-widest file:text-sky-400 ${inputClass}`}
+                  />
+                </label>
+
+                {user.foto_url && (
+                  <label className={`mt-4 flex items-center gap-2 text-[10px] font-mono uppercase tracking-wide ${monoMutedClass}`}>
+                    <input
+                      type="checkbox"
+                      checked={removeProfilePhoto}
+                      onChange={(e) => setRemoveProfilePhoto(e.target.checked)}
+                      className="accent-sky-500"
+                    />
+                    Quitar foto actual
+                  </label>
+                )}
+              </div>
+
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ${monoMutedClass}`}>Nombre</label>
+                    <input value={profileName} onChange={(e) => setProfileName(e.target.value)} className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ${monoMutedClass}`}>Correo</label>
+                    <input value={user.email} disabled className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs opacity-70 cursor-not-allowed ${inputClass}`} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ${monoMutedClass}`}>Institución</label>
+                    <input value={profileInstitution} onChange={(e) => setProfileInstitution(e.target.value)} className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ${monoMutedClass}`}>Teléfono</label>
+                    <input value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ${monoMutedClass}`}>Ubicación</label>
+                    <input value={profileLocation} onChange={(e) => setProfileLocation(e.target.value)} className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ${monoMutedClass}`}>Sitio Web</label>
+                    <input value={profileWebsite} onChange={(e) => setProfileWebsite(e.target.value)} className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`} placeholder="https://..." />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ${monoMutedClass}`}>Biografía</label>
+                  <textarea
+                    rows={6}
+                    value={profileBio}
+                    onChange={(e) => setProfileBio(e.target.value)}
+                    className={`w-full px-4 py-4 border rounded outline-none transition-all font-mono text-xs min-h-[160px] ${inputClass}`}
+                    placeholder="Cuéntanos sobre tu perfil académico, intereses de investigación o experiencia."
+                  />
+                </div>
+
+                <div className="flex justify-end gap-4 pt-4 border-t border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setIsProfileOpen(false)}
+                    className={`px-6 py-3 text-[10px] font-bold uppercase tracking-widest rounded border transition-colors ${ghostButtonClass}`}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-3 bg-sky-600 text-white font-bold uppercase tracking-widest text-[10px] rounded hover:bg-sky-500 transition-all shadow-lg shadow-sky-600/20"
+                  >
+                    Guardar Perfil
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className={`border-t pt-20 pb-10 transition-colors duration-300 ${isDark ? 'bg-[#0A0A0B] border-white/10' : 'bg-[#eaf0f7] border-slate-200'}`}>
