@@ -8,6 +8,11 @@ $email = $data['email'] ?? '';
 $password = $data['password'] ?? '';
 $role = $data['role'] ?? 'publico';
 
+// Security check: Prevent users from self-registering as admin
+if ($role === 'admin') {
+    $role = 'publico';
+}
+
 if (!$nombre || !$email || !$password) {
     http_response_code(400);
     echo json_encode(['error' => 'Faltan datos']);

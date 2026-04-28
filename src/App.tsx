@@ -325,7 +325,6 @@ export default function App() {
                         >
                           <option value="publico">Público General</option>
                           <option value="investigador">Investigador</option>
-                          <option value="admin">Administrador (Root)</option>
                         </select>
                       </div>
                     </>
@@ -512,7 +511,7 @@ export default function App() {
 
         <div className="max-w-7xl mx-auto px-4 mt-20 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-mono text-slate-600">
            <div className="flex items-center gap-4">
-              <span>© 2024 NEXUS SCI PLATFORM</span>
+              <span>© {new Date().getFullYear()} NEXUS SCI PLATFORM</span>
               <span className="flex items-center gap-1.5"><div className="size-1.5 bg-emerald-500 rounded-full animate-pulse"></div> TODOS LOS SISTEMAS EN LÍNEA</span>
            </div>
            <div className="flex gap-6 uppercase tracking-widest">
