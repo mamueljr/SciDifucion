@@ -61,7 +61,7 @@ export default function App() {
 
   const checkAuth = async () => {
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetch(`${import.meta.env.BASE_URL}api/auth/me.php`);
       if (res.ok) {
         const data = await res.json();
         setUser(data);
@@ -75,7 +75,7 @@ export default function App() {
 
   const fetchContent = async () => {
     try {
-      const res = await fetch('/api/contenido');
+      const res = await fetch(`${import.meta.env.BASE_URL}api/contenido.php`);
       if (res.ok) {
         const data = await res.json();
         setContent(data);
@@ -87,7 +87,7 @@ export default function App() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch(`${import.meta.env.BASE_URL}api/auth/login.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
@@ -104,7 +104,7 @@ export default function App() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/auth/register', {
+    const res = await fetch(`${import.meta.env.BASE_URL}api/auth/register.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nombre, email, password, role })
@@ -118,14 +118,14 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    await fetch(`${import.meta.env.BASE_URL}api/auth/logout.php`, { method: 'POST' });
     setUser(null);
     setView('home');
   };
 
   const handleCreateContent = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/contenido', {
+    const res = await fetch(`${import.meta.env.BASE_URL}api/contenido.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ titulo: title, cuerpo: body, tipo_id: typeId })
