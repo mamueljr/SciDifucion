@@ -1,4 +1,5 @@
 import express from "express";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
@@ -7,6 +8,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
+import multer from "multer";
 
 dotenv.config({ path: ".env.local" });
 
@@ -14,6 +16,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const JWT_SECRET = process.env.JWT_SECRET || "sci-difusion-secret-key-2024";
+const PORT = Number(process.env.PORT) || 3000;
+const UPLOADS_DIR = path.join(process.cwd(), "public", "uploads");
+const MAX_UPLOAD_SIZE = 20 * 1024 * 1024;
+const ALLOWED_MIME_TYPES = new Map<string, string>([
+  ["application/pdf", "documento"],
+  ["image/jpeg", "imagen"],
+  ["image/png", "imagen"],
+  ["image/webp", "imagen"],
+  ["audio/mpeg", "audio"],
+  ["audio/wav", "audio"],
+  ["video/mp4", "video"],
+]);
+
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 // --- MySQL Connection Pool ---
 const pool = mysql.createPool({
@@ -62,13 +78,42 @@ const authorize = (permiso: string) => {
   };
 };
 
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, UPLOADS_DIR);
+  },
+  filename: (_req, file, cb) => {
+    const extension = path.extname(file.originalname).toLowerCase();
+    const safeBaseName = path
+      .basename(file.originalname, extension)
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "archivo";
+
+    cb(null, `${Date.now()}-${safeBaseName}${extension}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: MAX_UPLOAD_SIZE },
+  fileFilter: (_req, file, cb) => {
+    if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
+      cb(new Error("Tipo de archivo no permitido"));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
 // --- Server Setup ---
 async function startServer() {
   const app = express();
-  const PORT = 3000;
 
   app.use(express.json());
   app.use(cookieParser());
+  app.use("/uploads", express.static(UPLOADS_DIR));
 
   // --- API Routes ---
 
@@ -165,10 +210,12 @@ async function startServer() {
     try {
       const [rows]: any = await pool.execute(
         `SELECT c.id, c.titulo, c.cuerpo, c.estado, c.created_at,
-                u.nombre AS autor, t.nombre AS tipo
+                u.nombre AS autor, t.nombre AS tipo,
+                a.nombre_original AS archivo_nombre, a.ruta AS archivo_url, a.mime_type AS archivo_mime_type
          FROM contenido c
          JOIN usuarios u ON c.autor_id = u.id
          JOIN tipos_contenido t ON c.tipo_id = t.id
+         LEFT JOIN archivos a ON a.entidad_tipo = 'contenido' AND a.entidad_id = c.id
          WHERE c.estado = 'publicado'
          ORDER BY c.created_at DESC`
       );
@@ -179,24 +226,91 @@ async function startServer() {
   });
 
   // Content: Create (Investigador / Admin)
-  app.post("/api/contenido", authenticate, authorize("contenido.crear"), async (req: any, res) => {
-    const { titulo, cuerpo, tipo_id, estado = "publicado" } = req.body;
-    const slug = titulo
-      .toLowerCase()
-      .replace(/ /g, "-")
-      .replace(/[^\w-]+/g, "");
+  app.post(
+    "/api/contenido",
+    authenticate,
+    authorize("contenido.crear"),
+    upload.single("archivo"),
+    async (req: any, res) => {
+      const { titulo, cuerpo, tipo_id, estado = "publicado" } = req.body;
+      const archivo = req.file;
 
-    try {
-      await pool.execute(
-        `INSERT INTO contenido (titulo, slug, cuerpo, autor_id, tipo_id, estado)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [titulo, slug, cuerpo, req.user.id, tipo_id, estado]
-      );
-      res.status(201).json({ message: "Contenido creado" });
-    } catch (err) {
-      res.status(400).json({ error: "Error al crear contenido (posible slug duplicado)" });
+      if (!titulo || !cuerpo || !tipo_id) {
+        if (archivo) {
+          fs.unlink(archivo.path, () => undefined);
+        }
+        return res.status(400).json({ error: "Faltan campos obligatorios" });
+      }
+
+      const parsedTypeId = Number(tipo_id);
+      if (!Number.isInteger(parsedTypeId) || parsedTypeId < 1) {
+        if (archivo) {
+          fs.unlink(archivo.path, () => undefined);
+        }
+        return res.status(400).json({ error: "tipo_id inválido" });
+      }
+
+      const normalizedState =
+        estado === "borrador" || estado === "archivado" ? estado : "publicado";
+
+      const slug = titulo
+        .toLowerCase()
+        .replace(/ /g, "-")
+        .replace(/[^\w-]+/g, "");
+
+      let connection;
+      try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        const [result]: any = await connection.execute(
+          `INSERT INTO contenido (titulo, slug, cuerpo, autor_id, tipo_id, estado)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [titulo, slug, cuerpo, req.user.id, parsedTypeId, normalizedState]
+        );
+
+        const contenidoId = result.insertId;
+
+        if (archivo) {
+          await connection.execute(
+            `INSERT INTO archivos
+             (nombre_original, ruta, mime_type, size, entidad_tipo, entidad_id)
+             VALUES (?, ?, ?, ?, 'contenido', ?)`,
+            [
+              archivo.originalname,
+              `/uploads/${archivo.filename}`,
+              archivo.mimetype,
+              archivo.size,
+              contenidoId,
+            ]
+          );
+        }
+
+        await connection.commit();
+        res.status(201).json({
+          message: "Contenido creado",
+          archivo: archivo
+            ? {
+                nombre: archivo.originalname,
+                url: `/uploads/${archivo.filename}`,
+                mimeType: archivo.mimetype,
+                size: archivo.size,
+              }
+            : null,
+        });
+      } catch (err) {
+        if (connection) {
+          await connection.rollback();
+        }
+        if (archivo) {
+          fs.unlink(archivo.path, () => undefined);
+        }
+        res.status(400).json({ error: "Error al crear contenido (posible slug duplicado)" });
+      } finally {
+        connection?.release();
+      }
     }
-  });
+  );
 
   // Admin: Stats
   app.get("/api/admin/stats", authenticate, authorize("usuarios.gestionar"), async (req, res) => {
@@ -207,6 +321,23 @@ async function startServer() {
     } catch (err) {
       res.status(500).json({ error: "Error al obtener estadísticas" });
     }
+  });
+
+  app.use((err: any, _req: any, res: any, next: any) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ error: "El archivo supera el límite de 20 MB" });
+      }
+      return res.status(400).json({ error: err.message });
+    }
+
+    if (err?.message === "Tipo de archivo no permitido") {
+      return res.status(400).json({
+        error: "Formato no permitido. Usa PDF, JPG, PNG, WebP, MP3, WAV o MP4",
+      });
+    }
+
+    next(err);
   });
 
   // --- Vite / Frontend Serving ---

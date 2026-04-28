@@ -35,7 +35,12 @@ interface ContentItem {
   autor: string;
   tipo: string;
   created_at: string;
+  archivo_nombre?: string | null;
+  archivo_url?: string | null;
+  archivo_mime_type?: string | null;
 }
+
+const API_PREFIX = 'api';
 
 export default function App() {
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -53,6 +58,8 @@ export default function App() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [typeId, setTypeId] = useState(1);
+  const [status, setStatus] = useState<'publicado' | 'borrador'>('publicado');
+  const [file, setFile] = useState<File | null>(null);
 
   useEffect(() => {
     checkAuth();
@@ -61,7 +68,7 @@ export default function App() {
 
   const checkAuth = async () => {
     try {
-      const res = await fetch(`${import.meta.env.BASE_URL}api/auth/me.php`);
+      const res = await fetch(`${API_PREFIX}/auth/me.php`);
       if (res.ok) {
         const data = await res.json();
         setUser(data);
@@ -75,7 +82,7 @@ export default function App() {
 
   const fetchContent = async () => {
     try {
-      const res = await fetch(`${import.meta.env.BASE_URL}api/contenido.php`);
+      const res = await fetch(`${API_PREFIX}/contenido.php`);
       if (res.ok) {
         const data = await res.json();
         setContent(data);
@@ -87,7 +94,7 @@ export default function App() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch(`${import.meta.env.BASE_URL}api/auth/login.php`, {
+    const res = await fetch(`${API_PREFIX}/auth/login.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
@@ -104,7 +111,7 @@ export default function App() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch(`${import.meta.env.BASE_URL}api/auth/register.php`, {
+    const res = await fetch(`${API_PREFIX}/auth/register.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nombre, email, password, role })
@@ -118,20 +125,33 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    await fetch(`${import.meta.env.BASE_URL}api/auth/logout.php`, { method: 'POST' });
+    await fetch(`${API_PREFIX}/auth/logout.php`, { method: 'POST' });
     setUser(null);
     setView('home');
   };
 
   const handleCreateContent = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch(`${import.meta.env.BASE_URL}api/contenido.php`, {
+    const formData = new FormData();
+    formData.append('titulo', title);
+    formData.append('cuerpo', body);
+    formData.append('tipo_id', String(typeId));
+    formData.append('estado', status);
+    if (file) {
+      formData.append('archivo', file);
+    }
+
+    const res = await fetch(`${API_PREFIX}/contenido.php`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ titulo: title, cuerpo: body, tipo_id: typeId })
+      body: formData
     });
     if (res.ok) {
       alert("Contenido publicado");
+      setTitle('');
+      setBody('');
+      setTypeId(1);
+      setStatus('publicado');
+      setFile(null);
       setView('home');
       fetchContent();
     } else {
@@ -260,6 +280,17 @@ export default function App() {
                     <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
                       {item.cuerpo}
                     </p>
+                    {item.archivo_url && (
+                      <a
+                        href={item.archivo_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mb-6 inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-sky-400 hover:text-white transition-colors"
+                      >
+                        <FileText size={14} />
+                        {item.archivo_nombre || 'Ver adjunto'}
+                      </a>
+                    )}
                     <div className="pt-6 border-t border-white/5 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="size-8 bg-white/5 rounded flex items-center justify-center text-slate-500 border border-white/10">
@@ -417,11 +448,28 @@ export default function App() {
                         </div>
                         <div className="space-y-2">
                           <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Estado de Publicación</label>
-                          <select className="w-full px-4 py-4 bg-[#0D0D10] border border-white/10 rounded text-white focus:border-sky-500 outline-none transition-all font-mono text-xs appearance-none">
+                          <select
+                            value={status}
+                            onChange={(e) => setStatus(e.target.value as 'publicado' | 'borrador')}
+                            className="w-full px-4 py-4 bg-[#0D0D10] border border-white/10 rounded text-white focus:border-sky-500 outline-none transition-all font-mono text-xs appearance-none"
+                          >
                             <option value="publicado">Publicado</option>
                             <option value="borrador">Borrador Privado</option>
                           </select>
                         </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest ml-1">Archivo Adjunto</label>
+                        <input
+                          type="file"
+                          accept=".pdf,image/png,image/jpeg,image/webp,audio/mpeg,audio/wav,video/mp4"
+                          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                          className="w-full px-4 py-3 bg-[#0D0D10] border border-white/10 rounded text-slate-300 focus:border-sky-500 outline-none transition-all font-mono text-xs file:mr-4 file:border-0 file:bg-sky-500/10 file:px-3 file:py-2 file:text-[10px] file:font-bold file:uppercase file:tracking-widest file:text-sky-400"
+                        />
+                        <p className="text-[10px] text-slate-500 font-mono uppercase tracking-wide">
+                          Opcional. Formatos: PDF, JPG, PNG, WebP, MP3, WAV o MP4. Límite: 20 MB.
+                        </p>
                       </div>
                     </div>
 
