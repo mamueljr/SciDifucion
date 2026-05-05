@@ -353,7 +353,13 @@ export default function App() {
 
           <nav className={`hidden md:flex items-center gap-8 text-[11px] font-mono uppercase tracking-wider ${monoMutedClass}`}>
             <button onClick={() => setView('home')} className="hover:text-sky-400 transition-colors cursor-pointer">Repositorio</button>
-            <button className="hover:text-sky-400 transition-colors cursor-pointer">Sala Virtual</button>
+            <button onClick={() => {
+              if (user) {
+                window.location.href = 'https://biggerbluebutton.com/rooms/lw4qDOTo3KtSCArUp9U4VrcqeLUUtmpM5RBgrn7TsogDET6nI6';
+              } else {
+                alert('necesitas registrarte para acceder a la sala virtual');
+              }
+            }} className="hover:text-sky-400 transition-colors cursor-pointer">Sala Virtual</button>
             <button className="hover:text-sky-400 transition-colors cursor-pointer">Directorio</button>
           </nav>
 
