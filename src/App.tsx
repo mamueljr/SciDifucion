@@ -355,7 +355,7 @@ export default function App() {
             <button onClick={() => setView('home')} className="hover:text-sky-400 transition-colors cursor-pointer">Repositorio</button>
             <button onClick={() => {
               if (user) {
-                window.location.href = 'https://biggerbluebutton.com/rooms/lw4qDOTo3KtSCArUp9U4VrcqeLUUtmpM5RBgrn7TsogDET6nI6';
+                window.location.href = 'https://bbb-test.investigacioneducativafccf.net/';
               } else {
                 alert('necesitas registrarte para acceder a la sala virtual');
               }
