@@ -22,4 +22,6 @@ investigador	Publicación de contenido
 usuario	Usuario autenticado básico
 invitado	Acceso público/no autenticado
 
+## Agregar enlace a encuestas
 
+Cuando un usuario esta logueado y con cualquier rol que no sea invitado debe mostrar un boton en el header que diga: encuestas, al dar clic debe abrir la pagina https://investigacioneducativafccf.net/disenador_instrumentos/
