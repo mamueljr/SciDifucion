@@ -68,6 +68,8 @@ export default function App() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [content, setContent] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [adminContent, setAdminContent] = useState<any[]>([]);
 
   // Form states
   const [email, setEmail] = useState('');
@@ -147,6 +149,75 @@ export default function App() {
       console.error("Fetch content failed", e);
     }
   };
+
+  const fetchAdminData = async () => {
+    try {
+      const usersRes = await fetch(`${API_PREFIX}/admin/users.php`);
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        setAdminUsers(usersData);
+      }
+      const contentRes = await fetch(`${API_PREFIX}/admin/content.php`);
+      if (contentRes.ok) {
+        const contentData = await contentRes.json();
+        setAdminContent(contentData);
+      }
+    } catch (e) {
+      console.error("Fetch admin data failed", e);
+    }
+  };
+
+  useEffect(() => {
+    if (view === 'admin') {
+      fetchAdminData();
+    }
+  }, [view]);
+
+  const handleDeleteAdminUser = async (id: number) => {
+    if (!window.confirm("¿Eliminar usuario? Esta acción es irreversible.")) return;
+    const res = await fetch(`${API_PREFIX}/admin/users.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', id })
+    });
+    if (res.ok) {
+      fetchAdminData();
+    } else {
+      alert("Error al eliminar usuario.");
+    }
+  };
+
+  const handleEditAdminUser = async (userObj: any) => {
+    const newRole = window.prompt("Ingresa nuevo rol (admin, investigador, publico):", userObj.role);
+    if (!newRole) return;
+    const res = await fetch(`${API_PREFIX}/admin/users.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update_role', id: userObj.id, role: newRole })
+    });
+    if (res.ok) {
+      fetchAdminData();
+    } else {
+      alert("Error al actualizar rol.");
+    }
+  };
+
+  const handleDeleteAdminContent = async (id: number) => {
+    if (!window.confirm("¿Eliminar publicación? Esta acción es irreversible.")) return;
+    const formData = new FormData();
+    formData.append('action', 'delete');
+    formData.append('id', String(id));
+    const res = await fetch(`${API_PREFIX}/admin/content.php`, {
+      method: 'POST',
+      body: formData
+    });
+    if (res.ok) {
+      fetchAdminData();
+    } else {
+      alert("Error al eliminar publicación.");
+    }
+  };
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -361,6 +432,12 @@ export default function App() {
               }
             }} className="hover:text-sky-400 transition-colors cursor-pointer">Sala Virtual</button>
             <button className="hover:text-sky-400 transition-colors cursor-pointer">Directorio</button>
+            {user && (
+              <button onClick={() => window.location.href = 'https://investigacioneducativafccf.net/disenador_instrumentos/'} className="hover:text-sky-400 transition-colors cursor-pointer">Encuestas</button>
+            )}
+            {user?.role === 'admin' && (
+              <button onClick={() => setView('admin')} className="hover:text-sky-400 transition-colors cursor-pointer font-bold text-sky-500">Panel</button>
+            )}
           </nav>
 
           <div className="flex items-center gap-4">
@@ -392,7 +469,9 @@ export default function App() {
                   )}
                   <div className="text-right hidden sm:block">
                     <p className={`text-xs font-bold uppercase tracking-tight hover:text-sky-400 transition-colors ${titleClass}`}>{user.nombre}</p>
-                    <p className="text-[9px] uppercase tracking-widest text-sky-400 font-mono font-bold">{user.role}</p>
+                    <p className="text-[9px] uppercase tracking-widest text-sky-400 font-mono font-bold">
+                      {user.role === 'publico' ? 'Usuario' : user.role === 'admin' ? 'Administrador' : user.role}
+                    </p>
                   </div>
                 </button>
                 <button 
@@ -573,7 +652,7 @@ export default function App() {
                           onChange={(e) => setRole(e.target.value)}
                           className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs appearance-none ${inputClass}`}
                         >
-                          <option value="publico">Público General</option>
+                          <option value="publico">Usuario</option>
                           <option value="investigador">Investigador</option>
                         </select>
                       </div>
@@ -750,6 +829,112 @@ export default function App() {
                     </button>
                   </div>
                 </form>
+              </div>
+            </motion.div>
+          )}
+
+          {view === 'admin' && user?.role === 'admin' && (
+            <motion.div 
+              key="admin"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+            >
+              <div className="mb-12">
+                <h2 className={`text-3xl font-bold tracking-tight mb-2 ${titleClass}`}>Panel de Administrador</h2>
+                <p className={`text-[11px] font-mono uppercase tracking-widest ${monoMutedClass}`}>Gestión de Usuarios y Publicaciones</p>
+              </div>
+
+              <div className="space-y-12">
+                {/* Users Table */}
+                <div className={`rounded border overflow-hidden ${panelClass}`}>
+                  <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
+                    <h3 className={`font-bold uppercase tracking-widest text-xs ${titleClass}`}>Usuarios Registrados</h3>
+                    <span className="bg-sky-500/10 text-sky-400 px-3 py-1 rounded-full text-[10px] font-mono font-bold">{adminUsers.length}</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className={`text-[10px] uppercase font-mono tracking-widest bg-black/20 ${monoMutedClass}`}>
+                        <tr>
+                          <th className="px-6 py-4 font-normal">Nombre</th>
+                          <th className="px-6 py-4 font-normal">Correo</th>
+                          <th className="px-6 py-4 font-normal">Rol</th>
+                          <th className="px-6 py-4 font-normal">Estado</th>
+                          <th className="px-6 py-4 font-normal text-right">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {adminUsers.map(u => (
+                          <tr key={u.id} className="hover:bg-white/5 transition-colors">
+                            <td className={`px-6 py-4 font-bold ${titleClass}`}>{u.nombre}</td>
+                            <td className={`px-6 py-4 ${textClass}`}>{u.email}</td>
+                            <td className="px-6 py-4">
+                              <span className="px-2 py-1 bg-white/5 text-[9px] font-mono uppercase tracking-widest rounded border border-white/10">
+                                {u.role === 'publico' ? 'Usuario' : u.role === 'admin' ? 'Administrador' : u.role}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`px-2 py-1 text-[9px] font-mono uppercase tracking-widest rounded ${u.activo ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>
+                                {u.activo ? 'Activo' : 'Inactivo'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right space-x-2">
+                              <button onClick={() => handleEditAdminUser(u)} className={`px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded border transition-colors ${ghostButtonClass}`}>Editar</button>
+                              <button onClick={() => handleDeleteAdminUser(u.id)} className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">Eliminar</button>
+                            </td>
+                          </tr>
+                        ))}
+                        {adminUsers.length === 0 && (
+                          <tr><td colSpan={5} className={`px-6 py-8 text-center text-xs font-mono uppercase ${monoMutedClass}`}>No hay usuarios</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Content Table */}
+                <div className={`rounded border overflow-hidden ${panelClass}`}>
+                  <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
+                    <h3 className={`font-bold uppercase tracking-widest text-xs ${titleClass}`}>Todas las Publicaciones</h3>
+                    <span className="bg-sky-500/10 text-sky-400 px-3 py-1 rounded-full text-[10px] font-mono font-bold">{adminContent.length}</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className={`text-[10px] uppercase font-mono tracking-widest bg-black/20 ${monoMutedClass}`}>
+                        <tr>
+                          <th className="px-6 py-4 font-normal">Título</th>
+                          <th className="px-6 py-4 font-normal">Autor</th>
+                          <th className="px-6 py-4 font-normal">Fecha</th>
+                          <th className="px-6 py-4 font-normal">Estado</th>
+                          <th className="px-6 py-4 font-normal text-right">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {adminContent.map(c => (
+                          <tr key={c.id} className="hover:bg-white/5 transition-colors">
+                            <td className={`px-6 py-4 font-bold max-w-xs truncate ${titleClass}`}>{c.titulo}</td>
+                            <td className={`px-6 py-4 ${textClass}`}>{c.autor}</td>
+                            <td className={`px-6 py-4 text-[10px] font-mono ${textClass}`}>{new Date(c.created_at).toISOString().split('T')[0]}</td>
+                            <td className="px-6 py-4">
+                              <span className="px-2 py-1 bg-white/5 text-[9px] font-mono uppercase tracking-widest rounded border border-white/10">
+                                {c.estado}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right space-x-2">
+                              <button onClick={() => {
+                                handleStartEdit(c);
+                              }} className={`px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded border transition-colors ${ghostButtonClass}`}>Editar</button>
+                              <button onClick={() => handleDeleteAdminContent(c.id)} className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">Eliminar</button>
+                            </td>
+                          </tr>
+                        ))}
+                        {adminContent.length === 0 && (
+                          <tr><td colSpan={5} className={`px-6 py-8 text-center text-xs font-mono uppercase ${monoMutedClass}`}>No hay publicaciones</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </motion.div>
           )}

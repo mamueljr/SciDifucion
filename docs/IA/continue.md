@@ -53,12 +53,13 @@ El proyecto comenzó con un backend en Node.js/Express, pero debido a los requis
 *   **Gestión de Contenido**: Los investigadores pueden crear publicaciones y adjuntar archivos (hasta 20 MB).
 *   **Tipos de Archivos Soportados**: `PDF`, `JPG`, `PNG`, `WebP`, `MP3`, `WAV`, `MP4`.
 *   **Sala Virtual**: Recientemente se implementó un control de acceso para la Sala Virtual, que valida si el usuario tiene sesión iniciada antes de redirigirlo a `https://bbb-test.investigacioneducativafccf.net/`.
+*   **Mejoras de UI y Roles**: Se renombró visualmente el rol "público" a "usuario" en la interfaz. Se añadió un enlace directo a "Encuestas" en el Header para usuarios logueados.
+*   **Panel de Administración**: Se implementó un panel administrativo accesible solo para el rol `admin`, permitiendo gestionar (ver, editar rol, eliminar) usuarios y publicaciones mediante endpoints seguros en `public/api/admin/`.
 
 ## 6. Tareas Pendientes / Posibles Mejoras (Roadmap)
 - [ ] **Limpieza de Documentación**: El archivo `README.md` actual contiene texto de plantilla (boilerplate de AI Studio) que no corresponde al proyecto. Debe ser reescrito.
 - [ ] **Validación de Archivos en Interfaz**: Comprobar desde la interfaz (UI) una publicación real con archivo y confirmar que la visualización y descarga funcionen correctamente.
 - [ ] **Separación de Entornos**: Limpiar o documentar claramente la coexistencia del entorno Node.js (`server.ts`) y PHP para evitar confusiones futuras.
-- [ ] **Gestión de Usuarios (Admin)**: Asegurar que el rol de administrador tenga vistas para gestionar (aprobar/eliminar) investigadores y publicaciones.
 
 ## 7. Instrucciones para Continuar
 Si eres un asistente de IA o un nuevo desarrollador:
