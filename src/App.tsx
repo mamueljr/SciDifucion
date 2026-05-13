@@ -70,6 +70,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [adminContent, setAdminContent] = useState<any[]>([]);
+  const [editingRoleUserId, setEditingRoleUserId] = useState<number | null>(null);
+  const [editingRoleValue, setEditingRoleValue] = useState<string>('');
 
   // Form states
   const [email, setEmail] = useState('');
@@ -187,16 +189,19 @@ export default function App() {
     }
   };
 
-  const handleEditAdminUser = async (userObj: any) => {
-    const newRole = window.prompt("Ingresa nuevo rol (admin, investigador, publico):", userObj.role);
-    if (!newRole) return;
+  const handleSaveAdminUserRole = async (userId: number, newRole: string) => {
+    if (!newRole) {
+      setEditingRoleUserId(null);
+      return;
+    }
     const res = await fetch(`${API_PREFIX}/admin/users.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'update_role', id: userObj.id, role: newRole })
+      body: JSON.stringify({ action: 'update_role', id: userId, role: newRole })
     });
     if (res.ok) {
       fetchAdminData();
+      setEditingRoleUserId(null);
     } else {
       alert("Error al actualizar rol.");
     }
@@ -869,9 +874,21 @@ export default function App() {
                             <td className={`px-6 py-4 font-bold ${titleClass}`}>{u.nombre}</td>
                             <td className={`px-6 py-4 ${textClass}`}>{u.email}</td>
                             <td className="px-6 py-4">
-                              <span className="px-2 py-1 bg-white/5 text-[9px] font-mono uppercase tracking-widest rounded border border-white/10">
-                                {u.role === 'publico' ? 'Usuario' : u.role === 'admin' ? 'Administrador' : u.role}
-                              </span>
+                              {editingRoleUserId === u.id ? (
+                                <select 
+                                  value={editingRoleValue}
+                                  onChange={e => setEditingRoleValue(e.target.value)}
+                                  className="bg-black/20 border border-white/10 rounded text-[9px] font-mono uppercase px-2 py-1 outline-none text-sky-400"
+                                >
+                                  <option value="admin">Administrador</option>
+                                  <option value="investigador">Investigador</option>
+                                  <option value="publico">Usuario</option>
+                                </select>
+                              ) : (
+                                <span className="px-2 py-1 bg-white/5 text-[9px] font-mono uppercase tracking-widest rounded border border-white/10">
+                                  {u.role === 'publico' ? 'Usuario' : u.role === 'admin' ? 'Administrador' : u.role}
+                                </span>
+                              )}
                             </td>
                             <td className="px-6 py-4">
                               <span className={`px-2 py-1 text-[9px] font-mono uppercase tracking-widest rounded ${u.activo ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>
@@ -879,7 +896,14 @@ export default function App() {
                               </span>
                             </td>
                             <td className="px-6 py-4 text-right space-x-2">
-                              <button onClick={() => handleEditAdminUser(u)} className={`px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded border transition-colors ${ghostButtonClass}`}>Editar</button>
+                              {editingRoleUserId === u.id ? (
+                                <>
+                                  <button onClick={() => handleSaveAdminUserRole(u.id, editingRoleValue)} className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded border transition-colors border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20">Guardar</button>
+                                  <button onClick={() => setEditingRoleUserId(null)} className={`px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded border transition-colors ${ghostButtonClass}`}>Cancelar</button>
+                                </>
+                              ) : (
+                                <button onClick={() => { setEditingRoleUserId(u.id); setEditingRoleValue(u.role); }} className={`px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded border transition-colors ${ghostButtonClass}`}>Editar</button>
+                              )}
                               <button onClick={() => handleDeleteAdminUser(u.id)} className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">Eliminar</button>
                             </td>
                           </tr>
