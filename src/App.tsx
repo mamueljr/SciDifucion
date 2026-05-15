@@ -1162,12 +1162,26 @@ export default function App() {
 
         <div className={`max-w-7xl mx-auto px-4 mt-20 pt-8 border-t flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-mono ${isDark ? 'border-white/5 text-slate-600' : 'border-slate-200 text-slate-500'}`}>
            <div className="flex items-center gap-4">
-              <span>© {new Date().getFullYear()} NEXUS SCI PLATFORM</span>
+              <a
+                href="https://mamueljr.github.io/esiscom/"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-sky-400 transition-colors"
+              >
+                © {new Date().getFullYear()} ESISCOM
+              </a>
               <span className="flex items-center gap-1.5"><div className="size-1.5 bg-emerald-500 rounded-full animate-pulse"></div> TODOS LOS SISTEMAS EN LÍNEA</span>
            </div>
            <div className="flex gap-6 uppercase tracking-widest">
               <a href="#" className="hover:text-sky-400">Privacy Policy</a>
-              <a href="#" className="hover:text-sky-400">Terms of Nexus</a>
+              <a
+                href="https://mamueljr.github.io/esiscom/"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-sky-400"
+              >
+                ESISCOM
+              </a>
            </div>
         </div>
       </footer>
