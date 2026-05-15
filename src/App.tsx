@@ -20,7 +20,9 @@ import {
   FileText,
   Video,
   Mic,
-  Layout
+  Layout,
+  Grid,
+  List
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -65,6 +67,7 @@ export default function App() {
   });
   const [user, setUser] = useState<UserInfo | null>(null);
   const [view, setView] = useState<'home' | 'login' | 'register' | 'admin' | 'create'>('home');
+  const [layoutView, setLayoutView] = useState<'grid' | 'list'>('grid');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [content, setContent] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -521,21 +524,38 @@ export default function App() {
                   <h1 className={`text-3xl font-bold tracking-tight ${titleClass}`}>Repositorio Científico</h1>
                   <p className={`mt-1 max-w-xl ${mutedClass}`}>Acceso centralizado a hallazgos académicos y documentación técnica verificada por la arquitectura de red SciDifusión.</p>
                 </div>
-                {(user?.role === 'admin' || user?.role === 'investigador') && (
-                  <button 
-                    onClick={handleStartCreate}
-                    className="flex items-center gap-2 px-6 py-3 bg-sky-500 text-white rounded font-bold uppercase tracking-widest text-[10px] hover:bg-sky-400 transition-all shadow-lg shadow-sky-500/20 w-fit"
-                  >
-                    <PlusCircle size={16} />
-                    Nueva Publicación
-                  </button>
-                )}
+                <div className="flex items-center gap-4">
+                  <div className={`flex items-center p-1 rounded-lg border ${ghostButtonClass}`}>
+                    <button
+                      onClick={() => setLayoutView('grid')}
+                      className={`p-2 rounded ${layoutView === 'grid' ? 'bg-sky-500 text-white' : ''} transition-all`}
+                      title="Vista de recuadros"
+                    >
+                      <Grid size={16} />
+                    </button>
+                    <button
+                      onClick={() => setLayoutView('list')}
+                      className={`p-2 rounded ${layoutView === 'list' ? 'bg-sky-500 text-white' : ''} transition-all`}
+                      title="Vista de lista"
+                    >
+                      <List size={16} />
+                    </button>
+                  </div>
+                  {(user?.role === 'admin' || user?.role === 'investigador') && (
+                    <button 
+                      onClick={handleStartCreate}
+                      className="flex items-center gap-2 px-6 py-3 bg-sky-500 text-white rounded font-bold uppercase tracking-widest text-[10px] hover:bg-sky-400 transition-all shadow-lg shadow-sky-500/20 w-fit"
+                    >
+                      <PlusCircle size={16} />
+                      Nueva Publicación
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className={layoutView === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" : "flex flex-col gap-6"}>
                 {content.length > 0 ? content.map(item => (
                   <motion.div 
-                    layoutId={`content-${item.id}`}
                     key={item.id}
                     className={`p-8 rounded border hover:border-sky-500/50 transition-all group flex flex-col h-full relative overflow-hidden ${panelClass}`}
                   >
