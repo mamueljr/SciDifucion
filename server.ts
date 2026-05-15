@@ -205,23 +205,111 @@ async function startServer() {
     res.json({ message: "Logout exitoso" });
   });
 
+  // Optional Auth Middleware
+  const optionalAuth = (req: any, res: any, next: any) => {
+    const token = req.cookies.token;
+    if (token) {
+      try {
+        req.user = jwt.verify(token, JWT_SECRET) as any;
+      } catch (err) {}
+    }
+    next();
+  };
+
   // Content: List (public)
-  app.get("/api/contenido", async (req, res) => {
+  app.get("/api/contenido", optionalAuth, async (req: any, res) => {
     try {
+      const userId = req.user?.id || 0;
+      let whereClause = "WHERE c.estado = 'publicado'";
+      const params: any[] = [userId];
+
+      if (req.user) {
+        whereClause += " OR c.autor_id = ?";
+        params.push(req.user.id);
+      }
+
       const [rows]: any = await pool.execute(
-        `SELECT c.id, c.titulo, c.cuerpo, c.estado, c.created_at,
-                u.nombre AS autor, t.nombre AS tipo,
-                a.nombre_original AS archivo_nombre, a.ruta AS archivo_url, a.mime_type AS archivo_mime_type
+        `SELECT c.id, c.titulo, c.cuerpo, c.estado, c.created_at, c.autor_id, c.tipo_id,
+                u.nombre AS autor, t.nombre AS tipo, r.nombre AS autor_rol,
+                a.nombre_original AS archivo_nombre, a.ruta AS archivo_url, a.mime_type AS archivo_mime_type,
+                COALESCE(l.likes_count, 0) AS likes_count,
+                IF(cl_user.id IS NOT NULL, 1, 0) AS user_liked
          FROM contenido c
          JOIN usuarios u ON c.autor_id = u.id
          JOIN tipos_contenido t ON c.tipo_id = t.id
+         LEFT JOIN usuarios_roles ur ON u.id = ur.usuario_id
+         LEFT JOIN roles r ON ur.rol_id = r.id
          LEFT JOIN archivos a ON a.entidad_tipo = 'contenido' AND a.entidad_id = c.id
-         WHERE c.estado = 'publicado'
-         ORDER BY c.created_at DESC`
+         LEFT JOIN (
+             SELECT contenido_id, COUNT(*) as likes_count 
+             FROM contenido_likes 
+             GROUP BY contenido_id
+         ) l ON c.id = l.contenido_id
+         LEFT JOIN contenido_likes cl_user ON c.id = cl_user.contenido_id AND cl_user.usuario_id = ?
+         ${whereClause}
+         ORDER BY likes_count DESC, 
+                  CASE r.nombre 
+                     WHEN 'admin' THEN 3 
+                     WHEN 'investigador' THEN 2 
+                     ELSE 1 
+                  END DESC, 
+                  c.created_at DESC`,
+        params
       );
-      res.json(rows);
+      
+      const mappedRows = rows.map((row: any) => ({
+          ...row,
+          user_liked: Boolean(row.user_liked),
+          likes_count: Number(row.likes_count)
+      }));
+      res.json(mappedRows);
     } catch (err) {
       res.status(500).json({ error: "Error al obtener contenido" });
+    }
+  });
+
+  // Content: Like
+  app.post("/api/like", authenticate, async (req: any, res) => {
+    try {
+      const { contenido_id } = req.body;
+      if (!contenido_id) return res.status(400).json({ error: "ID inválido" });
+      
+      const connection = await pool.getConnection();
+      await connection.beginTransaction();
+      
+      try {
+          const [existing]: any = await connection.execute(
+              "SELECT id FROM contenido_likes WHERE contenido_id = ? AND usuario_id = ?",
+              [contenido_id, req.user.id]
+          );
+          
+          let liked = false;
+          if (existing.length > 0) {
+              await connection.execute("DELETE FROM contenido_likes WHERE id = ?", [existing[0].id]);
+          } else {
+              await connection.execute("INSERT INTO contenido_likes (contenido_id, usuario_id) VALUES (?, ?)", [contenido_id, req.user.id]);
+              liked = true;
+          }
+          
+          const [countRes]: any = await connection.execute(
+              "SELECT COUNT(*) AS total_likes FROM contenido_likes WHERE contenido_id = ?",
+              [contenido_id]
+          );
+          
+          await connection.commit();
+          res.json({
+              message: liked ? "Like agregado" : "Like removido",
+              liked,
+              likes_count: Number(countRes[0].total_likes)
+          });
+      } catch (err) {
+          await connection.rollback();
+          throw err;
+      } finally {
+          connection.release();
+      }
+    } catch (err) {
+      res.status(500).json({ error: "Error al procesar el me gusta" });
     }
   });
 

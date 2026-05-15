@@ -107,34 +107,52 @@ $action = $_POST['accion'] ?? '';
 $sessionUser = $_SESSION['user'] ?? null;
 
 if ($requestMethod === 'GET') {
+    $userId = $sessionUser ? $sessionUser['id'] : 0;
+    
+    $whereClause = "WHERE c.estado = 'publicado'";
+    $params = [$userId]; 
     if ($sessionUser) {
-        $stmt = $pdo->prepare(
-            "SELECT c.id, c.titulo, c.cuerpo, c.estado, c.created_at, c.autor_id, c.tipo_id,
-                    u.nombre AS autor, t.nombre AS tipo,
-                    a.nombre_original AS archivo_nombre, a.ruta AS archivo_url, a.mime_type AS archivo_mime_type
-             FROM contenido c
-             JOIN usuarios u ON c.autor_id = u.id
-             JOIN tipos_contenido t ON c.tipo_id = t.id
-             LEFT JOIN archivos a ON a.entidad_tipo = 'contenido' AND a.entidad_id = c.id
-             WHERE c.estado = 'publicado' OR c.autor_id = ?
-             ORDER BY c.created_at DESC"
-        );
-        $stmt->execute([$sessionUser['id']]);
-    } else {
-        $stmt = $pdo->query(
-            "SELECT c.id, c.titulo, c.cuerpo, c.estado, c.created_at, c.autor_id, c.tipo_id,
-                    u.nombre AS autor, t.nombre AS tipo,
-                    a.nombre_original AS archivo_nombre, a.ruta AS archivo_url, a.mime_type AS archivo_mime_type
-             FROM contenido c
-             JOIN usuarios u ON c.autor_id = u.id
-             JOIN tipos_contenido t ON c.tipo_id = t.id
-             LEFT JOIN archivos a ON a.entidad_tipo = 'contenido' AND a.entidad_id = c.id
-             WHERE c.estado = 'publicado'
-             ORDER BY c.created_at DESC"
-        );
+        $whereClause .= " OR c.autor_id = ?";
+        $params[] = $sessionUser['id'];
     }
 
-    echo json_encode($stmt->fetchAll());
+    $sql = "SELECT c.id, c.titulo, c.cuerpo, c.estado, c.created_at, c.autor_id, c.tipo_id,
+                   u.nombre AS autor, t.nombre AS tipo, r.nombre AS autor_rol,
+                   a.nombre_original AS archivo_nombre, a.ruta AS archivo_url, a.mime_type AS archivo_mime_type,
+                   COALESCE(l.likes_count, 0) AS likes_count,
+                   IF(cl_user.id IS NOT NULL, 1, 0) AS user_liked
+            FROM contenido c
+            JOIN usuarios u ON c.autor_id = u.id
+            JOIN tipos_contenido t ON c.tipo_id = t.id
+            LEFT JOIN usuarios_roles ur ON u.id = ur.usuario_id
+            LEFT JOIN roles r ON ur.rol_id = r.id
+            LEFT JOIN archivos a ON a.entidad_tipo = 'contenido' AND a.entidad_id = c.id
+            LEFT JOIN (
+                SELECT contenido_id, COUNT(*) as likes_count 
+                FROM contenido_likes 
+                GROUP BY contenido_id
+            ) l ON c.id = l.contenido_id
+            LEFT JOIN contenido_likes cl_user ON c.id = cl_user.contenido_id AND cl_user.usuario_id = ?
+            $whereClause
+            ORDER BY likes_count DESC, 
+                     CASE r.nombre 
+                        WHEN 'admin' THEN 3 
+                        WHEN 'investigador' THEN 2 
+                        ELSE 1 
+                     END DESC, 
+                     c.created_at DESC";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $results = $stmt->fetchAll();
+    
+    // Convert boolean user_liked to actual boolean and likes_count to int
+    foreach($results as &$row) {
+        $row['user_liked'] = (bool) $row['user_liked'];
+        $row['likes_count'] = (int) $row['likes_count'];
+    }
+    
+    echo json_encode($results);
     exit;
 }
 

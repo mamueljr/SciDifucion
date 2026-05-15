@@ -23,7 +23,8 @@ import {
   Layout,
   Grid,
   List,
-  X
+  X,
+  Heart
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -56,6 +57,9 @@ interface ContentItem {
   archivo_nombre?: string | null;
   archivo_url?: string | null;
   archivo_mime_type?: string | null;
+  likes_count: number;
+  user_liked: boolean;
+  autor_rol: string;
 }
 
 const API_PREFIX = 'api';
@@ -363,6 +367,41 @@ export default function App() {
     alert(err.error || 'No se pudo eliminar la publicación');
   };
 
+  const handleToggleLike = async (id: number) => {
+    if (!user) {
+      alert("Debes iniciar sesión para dar me gusta.");
+      return;
+    }
+    const res = await fetch(`${API_PREFIX}/like.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contenido_id: id })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setContent(prev => {
+        const newContent = prev.map(item => 
+          item.id === id 
+            ? { ...item, likes_count: data.likes_count, user_liked: data.liked }
+            : item
+        );
+        return newContent.sort((a, b) => {
+            if (b.likes_count !== a.likes_count) return b.likes_count - a.likes_count;
+            const roleWeight = (role: string) => role === 'admin' ? 3 : role === 'investigador' ? 2 : 1;
+            const weightA = roleWeight(a.autor_rol);
+            const weightB = roleWeight(b.autor_rol);
+            if (weightB !== weightA) return weightB - weightA;
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+      });
+      if (selectedContent && selectedContent.id === id) {
+          setSelectedContent(prev => prev ? { ...prev, likes_count: data.likes_count, user_liked: data.liked } : null);
+      }
+    } else {
+      alert("Error al dar me gusta.");
+    }
+  };
+
   const handleOpenProfile = () => {
     if (!user) return;
     syncProfileForm(user);
@@ -622,6 +661,14 @@ export default function App() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleToggleLike(item.id); }} 
+                          className={`flex items-center gap-1.5 px-2 py-1 rounded transition-all ${item.user_liked ? 'text-red-500 bg-red-500/10' : 'text-slate-400 hover:text-red-400 hover:bg-red-500/10'}`}
+                          title="Me gusta"
+                        >
+                          <Heart size={14} className={item.user_liked ? 'fill-current' : ''} />
+                          <span className="text-[10px] font-bold font-mono">{item.likes_count}</span>
+                        </button>
                         {user?.id === item.autor_id && (
                           <span className={`text-[9px] font-mono uppercase tracking-widest ${monoMutedClass}`}>
                             {item.estado}
