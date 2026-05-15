@@ -22,7 +22,8 @@ import {
   Mic,
   Layout,
   Grid,
-  List
+  List,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -75,6 +76,7 @@ export default function App() {
   const [adminContent, setAdminContent] = useState<any[]>([]);
   const [editingRoleUserId, setEditingRoleUserId] = useState<number | null>(null);
   const [editingRoleValue, setEditingRoleValue] = useState<string>('');
+  const [selectedContent, setSelectedContent] = useState<ContentItem | null>(null);
 
   // Form states
   const [email, setEmail] = useState('');
@@ -559,41 +561,43 @@ export default function App() {
                     key={item.id}
                     className={`p-8 rounded border hover:border-sky-500/50 transition-all group flex flex-col h-full relative overflow-hidden ${panelClass}`}
                   >
-                    {user?.id === item.autor_id && (
-                      <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
-                        <button
-                          onClick={() => handleStartEdit(item)}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded border text-[9px] font-bold uppercase tracking-widest transition-colors ${ghostButtonClass}`}
-                        >
-                          <Pencil size={12} />
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => handleDeleteContent(item)}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded border text-[9px] font-bold uppercase tracking-widest transition-colors ${
-                            isDark
-                              ? 'border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20'
-                              : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
-                          }`}
-                        >
-                          <Trash2 size={12} />
-                          Eliminar
-                        </button>
-                      </div>
-                    )}
                     <div className="absolute top-0 left-0 w-1 h-full bg-sky-500/30 group-hover:bg-sky-500 transition-colors"></div>
-                    <div className="flex items-center justify-between mb-6 pr-28">
-                      <span className="px-3 py-1 bg-white/5 text-sky-400 text-[9px] font-mono font-bold uppercase rounded border border-white/10 tracking-widest">
-                        {item.tipo}
-                      </span>
-                      <time className={`text-[9px] font-mono uppercase tracking-tighter ${monoMutedClass}`}>
-                        FECHA: {new Date(item.created_at).toISOString().split('T')[0]}
-                      </time>
+                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
+                      <div className="flex items-center gap-3">
+                        <span className="px-3 py-1 bg-white/5 text-sky-400 text-[9px] font-mono font-bold uppercase rounded border border-white/10 tracking-widest">
+                          {item.tipo}
+                        </span>
+                        <time className={`text-[9px] font-mono uppercase tracking-tighter ${monoMutedClass}`}>
+                          FECHA: {new Date(item.created_at).toISOString().split('T')[0]}
+                        </time>
+                      </div>
+                      {user?.id === item.autor_id && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleStartEdit(item)}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded border text-[9px] font-bold uppercase tracking-widest transition-colors ${ghostButtonClass}`}
+                          >
+                            <Pencil size={12} />
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleDeleteContent(item)}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded border text-[9px] font-bold uppercase tracking-widest transition-colors ${
+                              isDark
+                                ? 'border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20'
+                                : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
+                            }`}
+                          >
+                            <Trash2 size={12} />
+                            Eliminar
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <h3 className={`text-lg font-bold group-hover:text-sky-400 transition-colors mb-4 tracking-tight leading-tight ${titleClass}`}>
                       {item.titulo}
                     </h3>
-                    <p className={`text-sm leading-relaxed mb-8 flex-grow ${textClass}`}>
+                    <p className={`text-sm leading-relaxed mb-8 flex-grow line-clamp-3 ${textClass}`}>
                       {item.cuerpo}
                     </p>
                     {item.archivo_url && (
@@ -623,7 +627,7 @@ export default function App() {
                             {item.estado}
                           </span>
                         )}
-                        <button className="text-[10px] font-bold text-sky-400 uppercase tracking-widest hover:text-white transition-colors">Detalles</button>
+                        <button onClick={() => setSelectedContent(item)} className="text-[10px] font-bold text-sky-400 uppercase tracking-widest hover:text-white transition-colors">Detalles</button>
                       </div>
                     </div>
                   </motion.div>
@@ -1185,6 +1189,78 @@ export default function App() {
            </div>
         </div>
       </footer>
+
+      {/* Modal Detalles */}
+      <AnimatePresence>
+        {selectedContent && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setSelectedContent(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className={`relative w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 md:p-10 rounded shadow-2xl border ${panelClass}`}
+              onClick={e => e.stopPropagation()}
+            >
+              <button 
+                onClick={() => setSelectedContent(null)}
+                className={`absolute top-6 right-6 p-2 rounded-full transition-colors ${ghostButtonClass}`}
+              >
+                <X size={16} />
+              </button>
+              
+              <div className="flex items-center gap-3 mb-6">
+                <span className="px-3 py-1 bg-white/5 text-sky-400 text-[10px] font-mono font-bold uppercase rounded border border-white/10 tracking-widest">
+                  {selectedContent.tipo}
+                </span>
+                <time className={`text-[10px] font-mono uppercase tracking-widest ${monoMutedClass}`}>
+                  FECHA: {new Date(selectedContent.created_at).toISOString().split('T')[0]}
+                </time>
+              </div>
+
+              <h2 className={`text-2xl md:text-3xl font-bold mb-6 tracking-tight leading-tight ${titleClass}`}>
+                {selectedContent.titulo}
+              </h2>
+
+              <div className="flex items-center gap-4 mb-8 pb-8 border-b border-white/5">
+                <div className="size-10 bg-sky-500/10 rounded flex items-center justify-center text-sky-400 border border-sky-500/20">
+                  <User size={18} />
+                </div>
+                <div>
+                  <p className={`text-xs font-bold uppercase tracking-widest ${textClass}`}>{selectedContent.autor}</p>
+                  <p className={`text-[9px] font-mono uppercase mt-1 ${monoMutedClass}`}>Investigador Verificado</p>
+                </div>
+              </div>
+
+              <div className={`text-sm leading-relaxed mb-10 ${textClass}`}>
+                {selectedContent.cuerpo.split('\n').map((paragraph, idx) => (
+                  <p key={idx} className="mb-4">{paragraph}</p>
+                ))}
+              </div>
+
+              {selectedContent.archivo_url && (
+                <div className="mt-8 pt-8 border-t border-white/5">
+                  <p className={`text-[10px] font-mono font-bold uppercase tracking-widest mb-4 ${monoMutedClass}`}>Material Adjunto</p>
+                  <a
+                    href={selectedContent.archivo_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center gap-3 w-full py-4 bg-sky-500/10 text-sky-400 border border-sky-500/30 rounded font-bold uppercase tracking-widest text-xs hover:bg-sky-500 hover:text-white transition-all shadow-lg shadow-sky-500/10"
+                  >
+                    <FileText size={18} />
+                    {selectedContent.archivo_nombre || 'Abrir Material Adjunto'}
+                  </a>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
