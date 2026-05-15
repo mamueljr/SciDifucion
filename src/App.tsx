@@ -661,14 +661,13 @@ export default function App() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleToggleLike(item.id); }} 
-                          className={`flex items-center gap-1.5 px-2 py-1 rounded transition-all ${item.user_liked ? 'text-red-500 bg-red-500/10' : 'text-slate-400 hover:text-red-400 hover:bg-red-500/10'}`}
+                        <div 
+                          className={`flex items-center gap-1.5 px-2 py-1 rounded ${item.user_liked ? 'text-red-500' : 'text-slate-400'}`}
                           title="Me gusta"
                         >
                           <Heart size={14} className={item.user_liked ? 'fill-current' : ''} />
                           <span className="text-[10px] font-bold font-mono">{item.likes_count}</span>
-                        </button>
+                        </div>
                         {user?.id === item.autor_id && (
                           <span className={`text-[9px] font-mono uppercase tracking-widest ${monoMutedClass}`}>
                             {item.estado}
@@ -1281,6 +1280,15 @@ export default function App() {
                 <div>
                   <p className={`text-xs font-bold uppercase tracking-widest ${textClass}`}>{selectedContent.autor}</p>
                   <p className={`text-[9px] font-mono uppercase mt-1 ${monoMutedClass}`}>Investigador Verificado</p>
+                </div>
+                <div className="ml-auto">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleToggleLike(selectedContent.id); }} 
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all shadow-sm ${selectedContent.user_liked ? 'border-red-500/50 bg-red-500/10 text-red-500' : 'border-slate-500/30 text-slate-400 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400'}`}
+                  >
+                    <Heart size={18} className={selectedContent.user_liked ? 'fill-current' : ''} />
+                    <span className="font-bold font-mono">{selectedContent.likes_count}</span>
+                  </button>
                 </div>
               </div>
 
