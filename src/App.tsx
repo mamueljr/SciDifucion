@@ -24,7 +24,9 @@ import {
   Grid,
   List,
   X,
-  Heart
+  Heart,
+  Mail,
+  KeyRound
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -71,7 +73,7 @@ export default function App() {
     return storedTheme === 'light' ? 'light' : 'dark';
   });
   const [user, setUser] = useState<UserInfo | null>(null);
-  const [view, setView] = useState<'home' | 'login' | 'register' | 'admin' | 'create'>('home');
+  const [view, setView] = useState<'home' | 'login' | 'register' | 'forgot-password' | 'reset-password' | 'admin' | 'create'>('home');
   const [layoutView, setLayoutView] = useState<'grid' | 'list'>('grid');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [content, setContent] = useState<ContentItem[]>([]);
@@ -87,6 +89,9 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
   const [role, setRole] = useState('publico');
+  const [resetToken, setResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   
   // Content form
   const [title, setTitle] = useState('');
@@ -132,6 +137,13 @@ export default function App() {
   useEffect(() => {
     checkAuth();
     fetchContent();
+
+    const token = new URLSearchParams(window.location.search).get('reset_token');
+    if (token) {
+      setResetToken(token);
+      setView('reset-password');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }, []);
 
   const checkAuth = async () => {
@@ -261,6 +273,53 @@ export default function App() {
       setView('login');
     } else {
       alert("Error al registrar");
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await fetch(`${API_PREFIX}/auth/forgot-password.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+
+    if (res.ok) {
+      alert("Si el correo existe, enviaremos instrucciones para restablecer la contraseña.");
+      setView('login');
+    } else {
+      const data = await res.json().catch(() => null);
+      alert(data?.error || "No se pudo enviar el correo de recuperación.");
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 8) {
+      alert("La nueva contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      alert("Las contraseñas no coinciden.");
+      return;
+    }
+
+    const res = await fetch(`${API_PREFIX}/auth/reset-password.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: resetToken, password: newPassword })
+    });
+
+    if (res.ok) {
+      alert("Contraseña actualizada correctamente. Ya puedes iniciar sesión.");
+      setPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setResetToken('');
+      setView('login');
+    } else {
+      const data = await res.json().catch(() => null);
+      alert(data?.error || "El enlace expiró o ya fue utilizado.");
     }
   };
 
@@ -687,7 +746,7 @@ export default function App() {
             </motion.div>
           )}
 
-          {(view === 'login' || view === 'register') && (
+          {(view === 'login' || view === 'register' || view === 'forgot-password' || view === 'reset-password') && (
             <motion.div 
               key="auth"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -699,15 +758,17 @@ export default function App() {
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-500 to-indigo-500"></div>
                 <div className="flex justify-center mb-8">
                   <div className="bg-sky-500/10 p-5 rounded-2xl border border-sky-500/30">
-                    {view === 'login' ? <Lock className="text-sky-400 size-10" /> : <User className="text-sky-400 size-10" />}
+                    {view === 'register' ? <User className="text-sky-400 size-10" /> : view === 'forgot-password' ? <Mail className="text-sky-400 size-10" /> : view === 'reset-password' ? <KeyRound className="text-sky-400 size-10" /> : <Lock className="text-sky-400 size-10" />}
                   </div>
                 </div>
                 <h2 className={`text-2xl font-bold text-center mb-2 ${titleClass}`}>
-                  {view === 'login' ? 'Inicio de Sesión' : 'Crear Cuenta'}
+                  {view === 'login' ? 'Inicio de Sesión' : view === 'register' ? 'Crear Cuenta' : view === 'forgot-password' ? 'Recuperar Contraseña' : 'Nueva Contraseña'}
                 </h2>
-                <p className={`text-center text-[10px] font-mono uppercase tracking-widest mb-10 ${monoMutedClass}`}>Acceso Seguro al Sistema</p>
+                <p className={`text-center text-[10px] font-mono uppercase tracking-widest mb-10 ${monoMutedClass}`}>
+                  {view === 'forgot-password' ? 'Te enviaremos un enlace por correo' : view === 'reset-password' ? 'Define una clave segura' : 'Acceso Seguro al Sistema'}
+                </p>
                 
-                <form onSubmit={view === 'login' ? handleLogin : handleRegister} className="space-y-6">
+                <form onSubmit={view === 'login' ? handleLogin : view === 'register' ? handleRegister : view === 'forgot-password' ? handleForgotPassword : handleResetPassword} className="space-y-6">
                   {view === 'register' && (
                     <>
                       <div className="space-y-2">
@@ -733,37 +794,74 @@ export default function App() {
                       </div>
                     </>
                   )}
-                  <div className="space-y-2">
-                    <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ml-1 ${monoMutedClass}`}>Correo Electrónico</label>
-                    <input 
-                      type="email" 
-                      required 
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ml-1 ${monoMutedClass}`}>Contraseña</label>
-                    <input 
-                      type="password" 
-                      required 
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`}
-                    />
-                  </div>
+                  {view !== 'reset-password' && (
+                    <div className="space-y-2">
+                      <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ml-1 ${monoMutedClass}`}>Correo Electrónico</label>
+                      <input 
+                        type="email" 
+                        required 
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`}
+                      />
+                    </div>
+                  )}
+                  {(view === 'login' || view === 'register') && (
+                    <div className="space-y-2">
+                      <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ml-1 ${monoMutedClass}`}>Contraseña</label>
+                      <input 
+                        type="password" 
+                        required 
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`}
+                      />
+                    </div>
+                  )}
+                  {view === 'reset-password' && (
+                    <>
+                      <div className="space-y-2">
+                        <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ml-1 ${monoMutedClass}`}>Nueva Contraseña</label>
+                        <input 
+                          type="password" 
+                          required 
+                          minLength={8}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ml-1 ${monoMutedClass}`}>Confirmar Contraseña</label>
+                        <input 
+                          type="password" 
+                          required 
+                          minLength={8}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`}
+                        />
+                      </div>
+                    </>
+                  )}
+                  {view === 'login' && (
+                    <button type="button" onClick={() => setView('forgot-password')} className="text-[11px] font-mono uppercase text-sky-400 font-bold hover:underline">
+                      Olvidé mi contraseña
+                    </button>
+                  )}
                   <button 
                     type="submit"
                     className="w-full py-4 bg-sky-600 text-white font-bold uppercase tracking-widest text-xs rounded hover:bg-sky-500 transition-all shadow-lg shadow-sky-600/20 active:scale-[0.99]"
                   >
-                    {view === 'login' ? 'Ingresar' : 'Registrarse'}
+                    {view === 'login' ? 'Ingresar' : view === 'register' ? 'Registrarse' : view === 'forgot-password' ? 'Enviar correo' : 'Actualizar contraseña'}
                   </button>
                 </form>
                 
                 <p className={`text-center mt-8 text-[11px] font-mono uppercase ${monoMutedClass}`}>
                   {view === 'login' ? (
                     <>¿No tienes cuenta? <button onClick={() => setView('register')} className="text-sky-400 font-bold hover:underline">Crear nueva cuenta</button></>
+                  ) : view === 'forgot-password' || view === 'reset-password' ? (
+                    <>¿Recordaste tu contraseña? <button onClick={() => setView('login')} className="text-sky-400 font-bold hover:underline">Volver al Login</button></>
                   ) : (
                     <>¿Ya tienes cuenta? <button onClick={() => setView('login')} className="text-sky-400 font-bold hover:underline">Volver al Login</button></>
                   )}

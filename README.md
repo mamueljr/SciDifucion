@@ -27,6 +27,7 @@ Actualmente el proyecto se encuentra en una etapa funcional avanzada.
 ## Funcionalidades implementadas
 
 - Sistema de autenticación
+- Recuperación de contraseña por correo
 - Control de acceso basado en roles (RBAC)
 - Gestión de publicaciones
 - Subida de archivos multimedia
@@ -76,6 +77,30 @@ Ubicación:
 ```
 
 Este backend es el que actualmente opera en producción.
+
+### Recuperación de contraseña
+
+El login permite recuperar contraseña por correo mediante un token temporal de un solo uso.
+
+Flujo:
+- El usuario usa `Olvidé mi contraseña`.
+- La API crea un token seguro, guarda solo su hash en `password_resets` y envía un enlace al correo registrado.
+- El enlace abre la app con `?reset_token=...`.
+- El usuario define una nueva contraseña y el token queda invalidado.
+
+Configuración requerida en producción:
+```text
+APP_URL="https://investigacioneducativafccf.net/scidifucion"
+MAIL_FROM="no-reply@investigacioneducativafccf.net"
+MAIL_FROM_NAME="SciDifusion"
+```
+
+Para bases ya existentes, ejecutar:
+```sql
+source migrations/001_password_resets.sql;
+```
+
+El servidor PHP debe tener envío de correo habilitado para `mail()`. En hosting compartido normalmente se configura desde el panel del proveedor.
 
 ---
 

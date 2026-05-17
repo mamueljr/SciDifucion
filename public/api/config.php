@@ -56,4 +56,40 @@ function authorize($pdo, $userId, $permiso) {
     }
     return true;
 }
+
+function appBaseUrl() {
+    $configuredUrl = getenv('APP_URL');
+    if ($configuredUrl) {
+        return rtrim($configuredUrl, '/');
+    }
+
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
+    $apiPosition = strpos($scriptDir, '/api');
+    $basePath = $apiPosition !== false ? substr($scriptDir, 0, $apiPosition) : '';
+
+    return rtrim($scheme . '://' . $host . $basePath, '/');
+}
+
+function sendPasswordResetEmail($to, $name, $resetUrl) {
+    $from = getenv('MAIL_FROM') ?: 'no-reply@scidifusion.local';
+    $fromName = getenv('MAIL_FROM_NAME') ?: 'SciDifusion';
+    $subject = 'Recupera tu contrasena de SciDifusion';
+    $safeName = trim($name) ?: 'usuario';
+    $message = "Hola {$safeName},\n\n";
+    $message .= "Recibimos una solicitud para restablecer tu contrasena.\n\n";
+    $message .= "Abre este enlace para crear una nueva contrasena:\n{$resetUrl}\n\n";
+    $message .= "El enlace vence en 1 hora. Si no solicitaste este cambio, ignora este correo.\n\n";
+    $message .= "SciDifusion";
+
+    $headers = [
+        'From: ' . $fromName . ' <' . $from . '>',
+        'Reply-To: ' . $from,
+        'Content-Type: text/plain; charset=UTF-8',
+        'X-Mailer: PHP/' . phpversion()
+    ];
+
+    return mail($to, $subject, $message, implode("\r\n", $headers));
+}
 ?>
