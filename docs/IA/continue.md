@@ -279,13 +279,31 @@ Notas:
 
 ## 10. Tareas Pendientes / Posibles Mejoras
 
-- [ ] Agregar definición/migración de `contenido_likes` para instalaciones limpias.
-- [ ] Revisar si las credenciales de `public/api/config.php` pueden moverse fuera del código versionado.
-- [ ] Unificar estrategia de migraciones: evitar mezclar `database.sql` con tablas creadas en runtime.
-- [ ] Documentar con claridad que `npm run dev` arranca `server.ts`, no solo un Vite puro.
+### Prioridad Alta
+
+- [ ] Agregar definición/migración de `contenido_likes` para instalaciones limpias. El código ya depende de esa tabla, pero `database.sql` no la define.
+- [ ] Revisar si las credenciales de `public/api/config.php` pueden moverse fuera del código versionado. Actualmente la contraseña de MySQL queda en PHP y se copia a `dist/api/config.php`.
+- [ ] Unificar estrategia de migraciones: evitar mezclar `database.sql`, scripts en `/migrations` y tablas creadas en runtime desde PHP.
+- [ ] Mejorar seguridad de sesiones PHP: revisar cookies `HttpOnly`, `Secure`, `SameSite` y limitar CORS, porque actualmente `Access-Control-Allow-Origin` está abierto.
+- [ ] Probar y robustecer recuperación de correo. El flujo existe, pero depende de `mail()` en Hostinger; si falla, considerar SMTP autenticado.
+
+### Prioridad Media
+
+- [ ] Separar mejor los scripts de desarrollo para no confundir backend PHP de producción con `server.ts`. Por ejemplo: `dev:node` para Express y documentación clara de build/despliegue.
+- [ ] Agregar validaciones frontend para tamaño de archivo, tipos permitidos, contraseñas y mensajes de error más claros antes de enviar al servidor.
+- [ ] Mejorar panel admin: activar/desactivar usuarios, búsqueda, filtros, paginación y confirmaciones más completas para acciones destructivas.
 - [ ] Revisar `docs/IA/mastercontext.md`, porque referencia `skills.md`, `architecture.md`, `deployment.md` y `ai_context.md`, pero esos archivos no existen en `docs/IA`.
+- [ ] Crear o completar documentación faltante en `/docs/IA`: `architecture.md`, `deployment.md`, `ai_context.md` y una guía breve para producción.
+- [ ] Crear proceso de backup/export de base de datos antes de cambios grandes o migraciones.
+
+### Prioridad Baja / Valor Futuro
+
+- [ ] Agregar paginación y búsqueda real en el repositorio para cuando crezca el volumen de publicaciones.
+- [ ] Integrar categorías funcionales en la UI, ya que existen tablas relacionadas pero no una experiencia completa.
+- [ ] Mejorar perfiles académicos con campos como ORCID, líneas de investigación y publicaciones del autor.
+- [ ] Usar la tabla `auditoria` para registrar acciones importantes: login, creación, edición, eliminación, cambio de rol y recuperación de contraseña.
 - [ ] Actualizar `PRESENTACION_SCIDIFUSION.md` con funciones recientes: likes, perfil extendido, panel admin, encuestas y recuperación de contraseña.
-- [ ] Probar periódicamente en producción el envío real de correos con `mail()` de Hostinger.
+- [ ] Preparar una versión estable 1.1 con changelog, tag de GitHub y lista de verificación de producción.
 
 ## 11. Instrucciones para Continuar
 
