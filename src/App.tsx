@@ -26,7 +26,9 @@ import {
   X,
   Heart,
   Mail,
-  KeyRound
+  KeyRound,
+  MessageCircle,
+  Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -60,8 +62,18 @@ interface ContentItem {
   archivo_url?: string | null;
   archivo_mime_type?: string | null;
   likes_count: number;
+  comments_count: number;
   user_liked: boolean;
   autor_rol: string;
+}
+
+interface CommentItem {
+  id: number;
+  contenido_id: number;
+  usuario_id: number;
+  autor: string;
+  comentario: string;
+  created_at: string;
 }
 
 const API_PREFIX = 'api';
@@ -83,6 +95,10 @@ export default function App() {
   const [editingRoleUserId, setEditingRoleUserId] = useState<number | null>(null);
   const [editingRoleValue, setEditingRoleValue] = useState<string>('');
   const [selectedContent, setSelectedContent] = useState<ContentItem | null>(null);
+  const [comments, setComments] = useState<CommentItem[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentBody, setCommentBody] = useState('');
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
 
   // Form states
   const [email, setEmail] = useState('');
@@ -146,6 +162,16 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!selectedContent) {
+      setComments([]);
+      setCommentBody('');
+      return;
+    }
+
+    fetchComments(selectedContent.id);
+  }, [selectedContent?.id]);
+
   const checkAuth = async () => {
     try {
       const res = await fetch(`${API_PREFIX}/auth/me.php`);
@@ -170,6 +196,24 @@ export default function App() {
       }
     } catch (e) {
       console.error("Fetch content failed", e);
+    }
+  };
+
+  const fetchComments = async (contentId: number) => {
+    setCommentsLoading(true);
+    try {
+      const res = await fetch(`${API_PREFIX}/comments.php?contenido_id=${contentId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setComments(data);
+      } else {
+        setComments([]);
+      }
+    } catch (e) {
+      console.error("Fetch comments failed", e);
+      setComments([]);
+    } finally {
+      setCommentsLoading(false);
     }
   };
 
@@ -461,6 +505,52 @@ export default function App() {
     }
   };
 
+  const handleSubmitComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedContent) return;
+
+    if (!user) {
+      alert("Debes iniciar sesión para comentar.");
+      return;
+    }
+
+    const trimmedComment = commentBody.trim();
+    if (!trimmedComment) return;
+
+    try {
+      setCommentSubmitting(true);
+      const res = await fetch(`${API_PREFIX}/comments.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contenido_id: selectedContent.id,
+          comentario: trimmedComment
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setComments(prev => [...prev, data.comment]);
+        setCommentBody('');
+        setContent(prev => prev.map(item =>
+          item.id === selectedContent.id
+            ? { ...item, comments_count: data.comments_count }
+            : item
+        ));
+        setSelectedContent(prev => prev ? { ...prev, comments_count: data.comments_count } : null);
+      } else {
+        const err = await res.json();
+        alert(err.error || 'No se pudo publicar el comentario');
+      }
+    } catch (e) {
+      console.error("Submit comment failed", e);
+      alert('No se pudo publicar el comentario');
+    } finally {
+      setCommentSubmitting(false);
+    }
+  };
+
   const handleOpenProfile = () => {
     if (!user) return;
     syncProfileForm(user);
@@ -726,6 +816,13 @@ export default function App() {
                         >
                           <Heart size={14} className={item.user_liked ? 'fill-current' : ''} />
                           <span className="text-[10px] font-bold font-mono">{item.likes_count}</span>
+                        </div>
+                        <div 
+                          className="flex items-center gap-1.5 px-2 py-1 rounded text-slate-400"
+                          title="Comentarios"
+                        >
+                          <MessageCircle size={14} />
+                          <span className="text-[10px] font-bold font-mono">{item.comments_count}</span>
                         </div>
                         {user?.id === item.autor_id && (
                           <span className={`text-[9px] font-mono uppercase tracking-widest ${monoMutedClass}`}>
@@ -1410,6 +1507,84 @@ export default function App() {
                   </a>
                 </div>
               )}
+
+              <section className="mt-8 pt-8 border-t border-white/5">
+                <div className="flex items-center justify-between gap-4 mb-5">
+                  <div className="flex items-center gap-2">
+                    <MessageCircle size={18} className="text-sky-400" />
+                    <h3 className={`text-sm font-bold uppercase tracking-widest ${titleClass}`}>
+                      Comentarios
+                    </h3>
+                  </div>
+                  <span className={`text-[10px] font-mono font-bold ${monoMutedClass}`}>
+                    {selectedContent.comments_count}
+                  </span>
+                </div>
+
+                <div className="space-y-4">
+                  {commentsLoading ? (
+                    <p className={`text-xs font-mono uppercase tracking-widest ${monoMutedClass}`}>
+                      Cargando comentarios...
+                    </p>
+                  ) : comments.length > 0 ? (
+                    comments.map(comment => (
+                      <article key={comment.id} className={`p-4 rounded border ${panelSoftClass}`}>
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                          <p className={`text-xs font-bold uppercase tracking-widest ${textClass}`}>
+                            {comment.autor}
+                          </p>
+                          <time className={`text-[9px] font-mono uppercase tracking-widest ${monoMutedClass}`}>
+                            {new Date(comment.created_at).toLocaleString('es-MX', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </time>
+                        </div>
+                        <p className={`text-sm leading-relaxed whitespace-pre-wrap ${textClass}`}>
+                          {comment.comentario}
+                        </p>
+                      </article>
+                    ))
+                  ) : (
+                    <p className={`text-xs font-mono uppercase tracking-widest ${monoMutedClass}`}>
+                      Aún no hay comentarios.
+                    </p>
+                  )}
+                </div>
+
+                {user ? (
+                  <form onSubmit={handleSubmitComment} className="mt-6 space-y-3">
+                    <textarea
+                      value={commentBody}
+                      onChange={e => setCommentBody(e.target.value)}
+                      maxLength={1000}
+                      rows={4}
+                      className={`w-full px-4 py-3 border rounded outline-none transition-all text-sm resize-none ${inputClass}`}
+                      placeholder="Escribe tu comentario..."
+                    />
+                    <div className="flex items-center justify-between gap-4">
+                      <span className={`text-[9px] font-mono uppercase tracking-widest ${monoMutedClass}`}>
+                        {commentBody.length}/1000
+                      </span>
+                      <button
+                        type="submit"
+                        disabled={commentSubmitting || commentBody.trim().length === 0}
+                        className="inline-flex items-center gap-2 px-5 py-3 bg-sky-600 text-white font-bold uppercase tracking-widest text-[10px] rounded hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-sky-600/20"
+                      >
+                        <Send size={14} />
+                        {commentSubmitting ? 'Publicando' : 'Comentar'}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className={`mt-6 p-4 rounded border text-xs font-mono uppercase tracking-widest ${panelSoftClass} ${monoMutedClass}`}>
+                    Inicia sesión para agregar un comentario.
+                  </div>
+                )}
+              </section>
             </motion.div>
           </motion.div>
         )}

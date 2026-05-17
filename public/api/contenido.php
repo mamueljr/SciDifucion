@@ -107,6 +107,14 @@ $action = $_POST['accion'] ?? '';
 $sessionUser = $_SESSION['user'] ?? null;
 
 if ($requestMethod === 'GET') {
+    try {
+        ensureContentCommentsTable($pdo);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'No se pudo preparar la tabla de comentarios']);
+        exit;
+    }
+
     $userId = $sessionUser ? $sessionUser['id'] : 0;
     
     $whereClause = "WHERE c.estado = 'publicado'";
@@ -120,6 +128,7 @@ if ($requestMethod === 'GET') {
                    u.nombre AS autor, t.nombre AS tipo, r.nombre AS autor_rol,
                    a.nombre_original AS archivo_nombre, a.ruta AS archivo_url, a.mime_type AS archivo_mime_type,
                    COALESCE(l.likes_count, 0) AS likes_count,
+                   COALESCE(cm.comments_count, 0) AS comments_count,
                    IF(cl_user.id IS NOT NULL, 1, 0) AS user_liked
             FROM contenido c
             JOIN usuarios u ON c.autor_id = u.id
@@ -132,6 +141,11 @@ if ($requestMethod === 'GET') {
                 FROM contenido_likes 
                 GROUP BY contenido_id
             ) l ON c.id = l.contenido_id
+            LEFT JOIN (
+                SELECT contenido_id, COUNT(*) as comments_count
+                FROM contenido_comentarios
+                GROUP BY contenido_id
+            ) cm ON c.id = cm.contenido_id
             LEFT JOIN contenido_likes cl_user ON c.id = cl_user.contenido_id AND cl_user.usuario_id = ?
             $whereClause
             ORDER BY likes_count DESC, 
@@ -150,6 +164,7 @@ if ($requestMethod === 'GET') {
     foreach($results as &$row) {
         $row['user_liked'] = (bool) $row['user_liked'];
         $row['likes_count'] = (int) $row['likes_count'];
+        $row['comments_count'] = (int) $row['comments_count'];
     }
     
     echo json_encode($results);

@@ -117,6 +117,34 @@ CREATE TABLE IF NOT EXISTS `contenido_categorias` (
     FOREIGN KEY (`categoria_id`) REFERENCES `categorias`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- 9.1 Me gusta de contenido
+CREATE TABLE IF NOT EXISTS `contenido_likes` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `contenido_id` BIGINT UNSIGNED NOT NULL,
+    `usuario_id` BIGINT UNSIGNED NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_contenido_likes_unique` (`contenido_id`, `usuario_id`),
+    INDEX `idx_contenido_likes_usuario_id` (`usuario_id`),
+    FOREIGN KEY (`contenido_id`) REFERENCES `contenido`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`usuario_id`) REFERENCES `usuarios`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 9.2 Comentarios de contenido
+CREATE TABLE IF NOT EXISTS `contenido_comentarios` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `contenido_id` BIGINT UNSIGNED NOT NULL,
+    `usuario_id` BIGINT UNSIGNED NOT NULL,
+    `comentario` TEXT NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    INDEX `idx_contenido_comentarios_contenido_id` (`contenido_id`),
+    INDEX `idx_contenido_comentarios_usuario_id` (`usuario_id`),
+    FOREIGN KEY (`contenido_id`) REFERENCES `contenido`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`usuario_id`) REFERENCES `usuarios`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- 10. Archivos Multimedia
 CREATE TABLE IF NOT EXISTS `archivos` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

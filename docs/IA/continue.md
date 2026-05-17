@@ -138,6 +138,7 @@ Roles reales/conceptuales:
 - Administradores pueden gestionar publicaciones desde panel.
 - Estados soportados: `publicado`, `borrador`, `archivado`.
 - El frontend usa principalmente `publicado` y `borrador`.
+- Las tarjetas muestran conteo de likes y comentarios.
 
 ### Archivos
 
@@ -196,6 +197,21 @@ El muro ordena por:
 
 El botón interactivo de "Me gusta" está en la vista de detalles para evitar clics accidentales.
 
+### Comentarios
+
+El sistema usa `contenido_comentarios`.
+
+Comportamiento actual:
+
+- Los comentarios se consultan desde `public/api/comments.php`.
+- Usuarios invitados pueden ver comentarios desde la vista de detalles.
+- Usuarios autenticados pueden publicar comentarios desde la vista de detalles.
+- Cada comentario muestra nombre del usuario autor y fecha/hora.
+- El frontend limita comentarios a 1000 caracteres.
+- `public/api/contenido.php` incluye `comments_count` para mostrar el contador en tarjetas y detalles.
+- `public/api/config.php` incluye `ensureContentCommentsTable()` para crear la tabla si aún no existe en producción.
+- Existe migración formal en `migrations/002_content_comments.sql`.
+
 ### Recuperación de Contraseña
 
 Flujo implementado:
@@ -229,13 +245,16 @@ Tablas definidas en `database.sql`:
 - `categorias`
 - `contenido`
 - `contenido_categorias`
+- `contenido_likes`
+- `contenido_comentarios`
 - `archivos`
 - `auditoria`
 - `usuarios_perfiles`
 
 Observación importante:
 
-- El código PHP y Node usan `contenido_likes`, pero `database.sql` no define esa tabla en la revisión actual. Si producción ya la tiene, la funcionalidad trabaja. Para una instalación limpia, falta agregar una migración o actualizar `database.sql`.
+- `database.sql` ya define `contenido_likes` y `contenido_comentarios` para instalaciones limpias.
+- Para bases existentes, los comentarios también pueden prepararse con `migrations/002_content_comments.sql`; además la API PHP intenta crear `contenido_comentarios` en runtime si no existe.
 
 ## 8. Configuración y Secretos
 
@@ -281,7 +300,6 @@ Notas:
 
 ### Prioridad Alta
 
-- [ ] Agregar definición/migración de `contenido_likes` para instalaciones limpias. El código ya depende de esa tabla, pero `database.sql` no la define.
 - [ ] Revisar si las credenciales de `public/api/config.php` pueden moverse fuera del código versionado. Actualmente la contraseña de MySQL queda en PHP y se copia a `dist/api/config.php`.
 - [ ] Unificar estrategia de migraciones: evitar mezclar `database.sql`, scripts en `/migrations` y tablas creadas en runtime desde PHP.
 - [ ] Mejorar seguridad de sesiones PHP: revisar cookies `HttpOnly`, `Secure`, `SameSite` y limitar CORS, porque actualmente `Access-Control-Allow-Origin` está abierto.
@@ -302,7 +320,7 @@ Notas:
 - [ ] Integrar categorías funcionales en la UI, ya que existen tablas relacionadas pero no una experiencia completa.
 - [ ] Mejorar perfiles académicos con campos como ORCID, líneas de investigación y publicaciones del autor.
 - [ ] Usar la tabla `auditoria` para registrar acciones importantes: login, creación, edición, eliminación, cambio de rol y recuperación de contraseña.
-- [ ] Actualizar `PRESENTACION_SCIDIFUSION.md` con funciones recientes: likes, perfil extendido, panel admin, encuestas y recuperación de contraseña.
+- [ ] Actualizar `PRESENTACION_SCIDIFUSION.md` con funciones recientes: likes, comentarios, perfil extendido, panel admin, encuestas y recuperación de contraseña.
 - [ ] Preparar una versión estable 1.1 con changelog, tag de GitHub y lista de verificación de producción.
 
 ## 11. Instrucciones para Continuar
