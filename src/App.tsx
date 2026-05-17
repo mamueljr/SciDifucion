@@ -28,7 +28,8 @@ import {
   Mail,
   KeyRound,
   MessageCircle,
-  Send
+  Send,
+  Menu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -88,6 +89,7 @@ export default function App() {
   const [view, setView] = useState<'home' | 'login' | 'register' | 'forgot-password' | 'reset-password' | 'admin' | 'create'>('home');
   const [layoutView, setLayoutView] = useState<'grid' | 'list'>('grid');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [content, setContent] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
@@ -171,6 +173,10 @@ export default function App() {
 
     fetchComments(selectedContent.id);
   }, [selectedContent?.id]);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [view]);
 
   const checkAuth = async () => {
     try {
@@ -551,6 +557,35 @@ export default function App() {
     }
   };
 
+  const handleGoHome = () => {
+    setView('home');
+    setIsMobileMenuOpen(false);
+  };
+
+  const handleOpenVirtualRoom = () => {
+    setIsMobileMenuOpen(false);
+    if (user) {
+      window.location.href = 'https://bbb-test.investigacioneducativafccf.net/';
+    } else {
+      alert('necesitas registrarte para acceder a la sala virtual');
+    }
+  };
+
+  const handleOpenSurveys = () => {
+    setIsMobileMenuOpen(false);
+    window.location.href = 'https://investigacioneducativafccf.net/disenador_instrumentos/';
+  };
+
+  const handleOpenAdmin = () => {
+    setView('admin');
+    setIsMobileMenuOpen(false);
+  };
+
+  const handleMobileAuthView = (nextView: 'login' | 'register') => {
+    setView(nextView);
+    setIsMobileMenuOpen(false);
+  };
+
   const handleOpenProfile = () => {
     if (!user) return;
     syncProfileForm(user);
@@ -609,39 +644,33 @@ export default function App() {
     <div className={`min-h-screen font-sans transition-colors duration-300 ${shellClass}`}>
       {/* Header */}
       <header className={`sticky top-0 z-50 border-b transition-colors duration-300 ${headerClass}`}>
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('home')}>
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 h-16 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3 cursor-pointer" onClick={handleGoHome}>
             <div className="bg-sky-500 p-1.5 rounded-lg shadow-lg shadow-sky-500/20">
-              <BookOpen className="text-white size-6" />
+              <BookOpen className="text-white size-5 sm:size-6" />
             </div>
-            <div>
-              <span className={`text-sm font-bold tracking-widest uppercase block leading-none ${titleClass}`}>SciDifusión</span>
-              <span className="text-[9px] text-sky-400 font-mono uppercase tracking-tighter">Plataforma SciDifusión v1.0.4</span>
+            <div className="min-w-0">
+              <span className={`text-xs sm:text-sm font-bold tracking-widest uppercase block leading-none truncate ${titleClass}`}>SciDifusión</span>
+              <span className="hidden sm:block text-[9px] text-sky-400 font-mono uppercase tracking-tighter truncate">Plataforma SciDifusión v1.0.4</span>
             </div>
           </div>
 
           <nav className={`hidden md:flex items-center gap-8 text-[11px] font-mono uppercase tracking-wider ${monoMutedClass}`}>
-            <button onClick={() => setView('home')} className="hover:text-sky-400 transition-colors cursor-pointer">Repositorio</button>
-            <button onClick={() => {
-              if (user) {
-                window.location.href = 'https://bbb-test.investigacioneducativafccf.net/';
-              } else {
-                alert('necesitas registrarte para acceder a la sala virtual');
-              }
-            }} className="hover:text-sky-400 transition-colors cursor-pointer">Sala Virtual</button>
+            <button onClick={handleGoHome} className="hover:text-sky-400 transition-colors cursor-pointer">Repositorio</button>
+            <button onClick={handleOpenVirtualRoom} className="hover:text-sky-400 transition-colors cursor-pointer">Sala Virtual</button>
             <button className="hover:text-sky-400 transition-colors cursor-pointer">Directorio</button>
             {user && (
-              <button onClick={() => window.location.href = 'https://investigacioneducativafccf.net/disenador_instrumentos/'} className="hover:text-sky-400 transition-colors cursor-pointer">Encuestas</button>
+              <button onClick={handleOpenSurveys} className="hover:text-sky-400 transition-colors cursor-pointer">Encuestas</button>
             )}
             {user?.role === 'admin' && (
-              <button onClick={() => setView('admin')} className="hover:text-sky-400 transition-colors cursor-pointer font-bold text-sky-500">Panel</button>
+              <button onClick={handleOpenAdmin} className="hover:text-sky-400 transition-colors cursor-pointer font-bold text-sky-500">Panel</button>
             )}
           </nav>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <button
               onClick={() => setTheme(isDark ? 'light' : 'dark')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-colors ${ghostButtonClass}`}
+              className={`flex items-center gap-2 p-2 sm:px-3 sm:py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-colors ${ghostButtonClass}`}
               title={isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
             >
               {isDark ? <Sun size={14} /> : <Moon size={14} />}
@@ -674,14 +703,14 @@ export default function App() {
                 </button>
                 <button 
                   onClick={handleLogout}
-                  className={`p-2 rounded-lg transition-colors group border ${ghostButtonClass}`}
+                  className={`hidden sm:block p-2 rounded-lg transition-colors group border ${ghostButtonClass}`}
                   title="Cerrar sesión"
                 >
                   <LogOut size={18} className="group-hover:text-red-400" />
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-2">
                 <button 
                   onClick={() => setView('login')}
                   className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-colors ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'}`}
@@ -696,11 +725,80 @@ export default function App() {
                 </button>
               </div>
             )}
+            <button
+              onClick={() => setIsMobileMenuOpen(prev => !prev)}
+              className={`md:hidden p-2 rounded-lg border transition-colors ${ghostButtonClass}`}
+              title={isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
+              aria-expanded={isMobileMenuOpen}
+              aria-label={isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
+            >
+              {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+            </button>
           </div>
         </div>
+
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className={`md:hidden border-t px-3 py-3 ${isDark ? 'border-white/10 bg-[#111114]' : 'border-slate-200 bg-white'}`}
+            >
+              <nav className={`grid gap-2 text-[11px] font-mono uppercase tracking-widest ${monoMutedClass}`}>
+                <button onClick={handleGoHome} className={`flex items-center justify-between rounded border px-4 py-3 text-left ${ghostButtonClass}`}>
+                  Repositorio
+                </button>
+                <button onClick={handleOpenVirtualRoom} className={`flex items-center justify-between rounded border px-4 py-3 text-left ${ghostButtonClass}`}>
+                  Sala Virtual
+                </button>
+                <button className={`flex items-center justify-between rounded border px-4 py-3 text-left ${ghostButtonClass}`}>
+                  Directorio
+                </button>
+                {user && (
+                  <button onClick={handleOpenSurveys} className={`flex items-center justify-between rounded border px-4 py-3 text-left ${ghostButtonClass}`}>
+                    Encuestas
+                  </button>
+                )}
+                {user?.role === 'admin' && (
+                  <button onClick={handleOpenAdmin} className="flex items-center justify-between rounded border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-left font-bold text-sky-400">
+                    Panel
+                  </button>
+                )}
+                {!user ? (
+                  <div className="grid grid-cols-2 gap-2 pt-2">
+                    <button
+                      onClick={() => handleMobileAuthView('login')}
+                      className={`rounded border px-4 py-3 font-bold ${ghostButtonClass}`}
+                    >
+                      Login
+                    </button>
+                    <button
+                      onClick={() => handleMobileAuthView('register')}
+                      className="rounded border border-sky-500/30 bg-sky-500/10 px-4 py-3 font-bold text-sky-400"
+                    >
+                      Registro
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="mt-2 flex items-center justify-center gap-2 rounded border border-red-500/30 bg-red-500/10 px-4 py-3 font-bold text-red-400"
+                  >
+                    <LogOut size={14} />
+                    Cerrar Sesión
+                  </button>
+                )}
+              </nav>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
         <AnimatePresence mode="wait">
           {view === 'home' && (
             <motion.div 
@@ -709,12 +807,12 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
             >
-              <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 sm:mb-12 gap-4">
                 <div>
-                  <h1 className={`text-3xl font-bold tracking-tight ${titleClass}`}>Repositorio Científico</h1>
+                  <h1 className={`text-2xl sm:text-3xl font-bold tracking-tight ${titleClass}`}>Repositorio Científico</h1>
                   <p className={`mt-1 max-w-xl ${mutedClass}`}>Acceso centralizado a hallazgos académicos y documentación técnica verificada por la arquitectura de red SciDifusión.</p>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                   <div className={`flex items-center p-1 rounded-lg border ${ghostButtonClass}`}>
                     <button
                       onClick={() => setLayoutView('grid')}
@@ -734,7 +832,7 @@ export default function App() {
                   {(user?.role === 'admin' || user?.role === 'investigador') && (
                     <button 
                       onClick={handleStartCreate}
-                      className="flex items-center gap-2 px-6 py-3 bg-sky-500 text-white rounded font-bold uppercase tracking-widest text-[10px] hover:bg-sky-400 transition-all shadow-lg shadow-sky-500/20 w-fit"
+                      className="flex items-center gap-2 px-4 sm:px-6 py-3 bg-sky-500 text-white rounded font-bold uppercase tracking-widest text-[10px] hover:bg-sky-400 transition-all shadow-lg shadow-sky-500/20 w-full sm:w-fit justify-center"
                     >
                       <PlusCircle size={16} />
                       Nueva Publicación
@@ -747,7 +845,7 @@ export default function App() {
                 {content.length > 0 ? content.map(item => (
                   <motion.div 
                     key={item.id}
-                    className={`p-8 rounded border hover:border-sky-500/50 transition-all group flex flex-col h-full relative overflow-hidden ${panelClass}`}
+                    className={`p-5 sm:p-8 rounded border hover:border-sky-500/50 transition-all group flex flex-col h-full relative overflow-hidden ${panelClass}`}
                   >
                     <div className="absolute top-0 left-0 w-1 h-full bg-sky-500/30 group-hover:bg-sky-500 transition-colors"></div>
                     <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
@@ -1080,10 +1178,10 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="flex gap-4 pt-8 border-t border-white/5">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-8 border-t border-white/5">
                     <button 
                       type="submit"
-                      className="flex-grow py-5 bg-sky-600 text-white font-bold uppercase tracking-widest text-xs rounded hover:bg-sky-500 transition-all shadow-lg shadow-sky-600/20 active:scale-[0.99]"
+                      className="flex-grow py-4 sm:py-5 bg-sky-600 text-white font-bold uppercase tracking-widest text-xs rounded hover:bg-sky-500 transition-all shadow-lg shadow-sky-600/20 active:scale-[0.99]"
                     >
                       {isEditing ? 'Guardar Cambios' : 'Autenticar y Publicar'}
                     </button>
@@ -1093,7 +1191,7 @@ export default function App() {
                         resetContentForm();
                         setView('home');
                       }}
-                      className={`px-10 py-5 font-bold uppercase tracking-widest text-xs rounded border transition-all ${ghostButtonClass}`}
+                      className={`px-6 sm:px-10 py-4 sm:py-5 font-bold uppercase tracking-widest text-xs rounded border transition-all ${ghostButtonClass}`}
                     >
                       Cancelar
                     </button>
@@ -1123,7 +1221,7 @@ export default function App() {
                     <span className="bg-sky-500/10 text-sky-400 px-3 py-1 rounded-full text-[10px] font-mono font-bold">{adminUsers.length}</span>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
+                    <table className="w-full min-w-[760px] text-left text-sm">
                       <thead className={`text-[10px] uppercase font-mono tracking-widest bg-black/20 ${monoMutedClass}`}>
                         <tr>
                           <th className="px-6 py-4 font-normal">Nombre</th>
@@ -1188,7 +1286,7 @@ export default function App() {
                     <span className="bg-sky-500/10 text-sky-400 px-3 py-1 rounded-full text-[10px] font-mono font-bold">{adminContent.length}</span>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
+                    <table className="w-full min-w-[720px] text-left text-sm">
                       <thead className={`text-[10px] uppercase font-mono tracking-widest bg-black/20 ${monoMutedClass}`}>
                         <tr>
                           <th className="px-6 py-4 font-normal">Título</th>
@@ -1438,24 +1536,24 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
             onClick={() => setSelectedContent(null)}
           >
             <motion.div
               initial={{ scale: 0.95, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
-              className={`relative w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 md:p-10 rounded shadow-2xl border ${panelClass}`}
+              className={`relative w-full max-w-2xl max-h-[92vh] sm:max-h-[90vh] overflow-y-auto p-5 sm:p-8 md:p-10 rounded-t-2xl sm:rounded shadow-2xl border ${panelClass}`}
               onClick={e => e.stopPropagation()}
             >
               <button 
                 onClick={() => setSelectedContent(null)}
-                className={`absolute top-6 right-6 p-2 rounded-full transition-colors ${ghostButtonClass}`}
+                className={`absolute top-4 right-4 sm:top-6 sm:right-6 p-2 rounded-full transition-colors ${ghostButtonClass}`}
               >
                 <X size={16} />
               </button>
               
-              <div className="flex items-center gap-3 mb-6">
+              <div className="flex flex-wrap items-center gap-3 pr-10 mb-6">
                 <span className="px-3 py-1 bg-white/5 text-sky-400 text-[10px] font-mono font-bold uppercase rounded border border-white/10 tracking-widest">
                   {selectedContent.tipo}
                 </span>
@@ -1464,11 +1562,11 @@ export default function App() {
                 </time>
               </div>
 
-              <h2 className={`text-2xl md:text-3xl font-bold mb-6 tracking-tight leading-tight ${titleClass}`}>
+              <h2 className={`text-xl sm:text-2xl md:text-3xl font-bold mb-6 tracking-tight leading-tight ${titleClass}`}>
                 {selectedContent.titulo}
               </h2>
 
-              <div className="flex items-center gap-4 mb-8 pb-8 border-b border-white/5">
+              <div className="flex flex-wrap items-center gap-4 mb-8 pb-8 border-b border-white/5">
                 <div className="size-10 bg-sky-500/10 rounded flex items-center justify-center text-sky-400 border border-sky-500/20">
                   <User size={18} />
                 </div>
@@ -1476,7 +1574,7 @@ export default function App() {
                   <p className={`text-xs font-bold uppercase tracking-widest ${textClass}`}>{selectedContent.autor}</p>
                   <p className={`text-[9px] font-mono uppercase mt-1 ${monoMutedClass}`}>Investigador Verificado</p>
                 </div>
-                <div className="ml-auto">
+                <div className="ml-0 sm:ml-auto">
                   <button 
                     onClick={(e) => { e.stopPropagation(); handleToggleLike(selectedContent.id); }} 
                     className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all shadow-sm ${selectedContent.user_liked ? 'border-red-500/50 bg-red-500/10 text-red-500' : 'border-slate-500/30 text-slate-400 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400'}`}
@@ -1500,7 +1598,7 @@ export default function App() {
                     href={selectedContent.archivo_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center justify-center gap-3 w-full py-4 bg-sky-500/10 text-sky-400 border border-sky-500/30 rounded font-bold uppercase tracking-widest text-xs hover:bg-sky-500 hover:text-white transition-all shadow-lg shadow-sky-500/10"
+                    className="inline-flex items-center justify-center gap-3 w-full px-3 py-4 bg-sky-500/10 text-sky-400 border border-sky-500/30 rounded font-bold uppercase tracking-widest text-[10px] sm:text-xs hover:bg-sky-500 hover:text-white transition-all shadow-lg shadow-sky-500/10"
                   >
                     <FileText size={18} />
                     {selectedContent.archivo_nombre || 'Abrir Material Adjunto'}
@@ -1565,14 +1663,14 @@ export default function App() {
                       className={`w-full px-4 py-3 border rounded outline-none transition-all text-sm resize-none ${inputClass}`}
                       placeholder="Escribe tu comentario..."
                     />
-                    <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                       <span className={`text-[9px] font-mono uppercase tracking-widest ${monoMutedClass}`}>
                         {commentBody.length}/1000
                       </span>
                       <button
                         type="submit"
                         disabled={commentSubmitting || commentBody.trim().length === 0}
-                        className="inline-flex items-center gap-2 px-5 py-3 bg-sky-600 text-white font-bold uppercase tracking-widest text-[10px] rounded hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-sky-600/20"
+                        className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-sky-600 text-white font-bold uppercase tracking-widest text-[10px] rounded hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-sky-600/20"
                       >
                         <Send size={14} />
                         {commentSubmitting ? 'Publicando' : 'Comentar'}
