@@ -185,6 +185,23 @@ Permite:
 - Listar publicaciones.
 - Eliminar publicaciones.
 
+En móvil, las tablas del panel usan scroll horizontal para conservar columnas y acciones sin romper el layout.
+
+### Responsive Móvil
+
+El frontend ya cuenta con ajustes responsive principales en `src/App.tsx`.
+
+Comportamiento actual:
+
+- Header compacto en teléfono.
+- Menú móvil con botón `Menu/X`.
+- En móvil se muestran accesos a Repositorio, Sala Virtual, Directorio, Encuestas, Panel, Login/Registro o Cerrar sesión según estado de sesión y rol.
+- Acciones principales del home se acomodan con `flex-wrap`.
+- Tarjetas del repositorio usan menor padding en pantallas pequeñas.
+- Formulario de creación/edición acomoda botones en columna en móvil.
+- Modal de detalles y comentarios se presenta como panel inferior en teléfono, con padding reducido.
+- Tablas del panel admin usan `overflow-x-auto` y ancho mínimo para scroll horizontal.
+
 ### Likes y Ordenamiento
 
 El sistema usa `contenido_likes`.
@@ -310,6 +327,7 @@ Notas:
 - [ ] Separar mejor los scripts de desarrollo para no confundir backend PHP de producción con `server.ts`. Por ejemplo: `dev:node` para Express y documentación clara de build/despliegue.
 - [ ] Agregar validaciones frontend para tamaño de archivo, tipos permitidos, contraseñas y mensajes de error más claros antes de enviar al servidor.
 - [ ] Mejorar panel admin: activar/desactivar usuarios, búsqueda, filtros, paginación y confirmaciones más completas para acciones destructivas.
+- [ ] Revisar responsive con usuarios reales en varios teléfonos y ajustar detalles finos de espaciado, textos largos o tablas si aparecen casos extremos.
 - [ ] Revisar `docs/IA/mastercontext.md`, porque referencia `skills.md`, `architecture.md`, `deployment.md` y `ai_context.md`, pero esos archivos no existen en `docs/IA`.
 - [ ] Crear o completar documentación faltante en `/docs/IA`: `architecture.md`, `deployment.md`, `ai_context.md` y una guía breve para producción.
 - [ ] Crear proceso de backup/export de base de datos antes de cambios grandes o migraciones.
