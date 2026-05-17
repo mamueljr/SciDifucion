@@ -10,6 +10,12 @@ $stmt->execute([$email]);
 $user = $stmt->fetch();
 
 if ($user && password_verify($password, $user['password'])) {
+    if ((int) ($user['activo'] ?? 1) !== 1) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Cuenta inactiva. Contacta al administrador.']);
+        exit;
+    }
+
     $stmt = $pdo->prepare("SELECT r.nombre FROM roles r
         JOIN usuarios_roles ur ON r.id = ur.rol_id
         WHERE ur.usuario_id = ?");

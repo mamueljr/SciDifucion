@@ -24,7 +24,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $data['action'] ?? '';
 
     if ($action === 'delete') {
-        $id = $data['id'] ?? 0;
+        $id = isset($data['id']) ? (int) $data['id'] : 0;
+
+        if ($id < 1 || $id === (int) $user['id']) {
+            http_response_code(400);
+            echo json_encode(['error' => 'No puedes eliminar este usuario']);
+            exit;
+        }
+
         $stmt = $pdo->prepare("DELETE FROM usuarios WHERE id = ?");
         $stmt->execute([$id]);
         echo json_encode(['success' => true]);
@@ -32,8 +39,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'update_role') {
-        $id = $data['id'] ?? 0;
+        $id = isset($data['id']) ? (int) $data['id'] : 0;
         $roleName = $data['role'] ?? '';
+
+        if ($id < 1) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Usuario inválido']);
+            exit;
+        }
         
         $stmt = $pdo->prepare("SELECT id FROM roles WHERE nombre = ?");
         $stmt->execute([$roleName]);
@@ -47,6 +60,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             http_response_code(400);
             echo json_encode(['error' => 'Rol inválido']);
         }
+        exit;
+    }
+
+    if ($action === 'toggle_active') {
+        $id = isset($data['id']) ? (int) $data['id'] : 0;
+        $active = !empty($data['active']) ? 1 : 0;
+
+        if ($id < 1 || $id === (int) $user['id']) {
+            http_response_code(400);
+            echo json_encode(['error' => 'No puedes cambiar el estado de este usuario']);
+            exit;
+        }
+
+        $stmt = $pdo->prepare("UPDATE usuarios SET activo = ? WHERE id = ?");
+        $stmt->execute([$active, $id]);
+        echo json_encode(['success' => true]);
         exit;
     }
 }

@@ -111,6 +111,18 @@ interface AuthorProfileData {
 }
 
 const API_PREFIX = 'api';
+const MAX_CONTENT_FILE_SIZE = 20 * 1024 * 1024;
+const MAX_PROFILE_PHOTO_SIZE = 5 * 1024 * 1024;
+const ALLOWED_CONTENT_MIME_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'audio/mpeg',
+  'audio/wav',
+  'video/mp4',
+];
+const ALLOWED_PROFILE_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export default function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -132,6 +144,13 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [adminContent, setAdminContent] = useState<any[]>([]);
+  const [adminUserSearch, setAdminUserSearch] = useState('');
+  const [adminUserRoleFilter, setAdminUserRoleFilter] = useState('todos');
+  const [adminUserStatusFilter, setAdminUserStatusFilter] = useState('todos');
+  const [adminUserPage, setAdminUserPage] = useState(1);
+  const [adminContentSearch, setAdminContentSearch] = useState('');
+  const [adminContentStatusFilter, setAdminContentStatusFilter] = useState('todos');
+  const [adminContentPage, setAdminContentPage] = useState(1);
   const [editingRoleUserId, setEditingRoleUserId] = useState<number | null>(null);
   const [editingRoleValue, setEditingRoleValue] = useState<string>('');
   const [selectedContent, setSelectedContent] = useState<ContentItem | null>(null);
@@ -174,6 +193,7 @@ export default function App() {
   const [removeProfilePhoto, setRemoveProfilePhoto] = useState(false);
   const isDark = theme === 'dark';
   const isEditing = editingContentId !== null;
+  const adminPageSize = 8;
 
   const shellClass = isDark ? 'bg-[#0A0A0B] text-slate-300' : 'bg-[#f3f6fb] text-slate-800';
   const headerClass = isDark ? 'bg-[#111114] border-white/10' : 'bg-white/90 border-slate-200 shadow-sm';
@@ -190,6 +210,30 @@ export default function App() {
     ? 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'
     : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200';
   const statPanelClass = isDark ? 'bg-[#111114] border-white/5' : 'bg-white border-slate-200 shadow-[0_12px_32px_rgba(15,23,42,0.06)]';
+  const filteredAdminUsers = adminUsers.filter(adminUser => {
+    const query = adminUserSearch.trim().toLowerCase();
+    const matchesSearch = !query
+      || String(adminUser.nombre || '').toLowerCase().includes(query)
+      || String(adminUser.email || '').toLowerCase().includes(query)
+      || String(adminUser.role || '').toLowerCase().includes(query);
+    const matchesRole = adminUserRoleFilter === 'todos' || adminUser.role === adminUserRoleFilter;
+    const matchesStatus = adminUserStatusFilter === 'todos'
+      || (adminUserStatusFilter === 'activo' && Boolean(Number(adminUser.activo)))
+      || (adminUserStatusFilter === 'inactivo' && !Boolean(Number(adminUser.activo)));
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+  const adminUserTotalPages = Math.max(1, Math.ceil(filteredAdminUsers.length / adminPageSize));
+  const pagedAdminUsers = filteredAdminUsers.slice((adminUserPage - 1) * adminPageSize, adminUserPage * adminPageSize);
+  const filteredAdminContent = adminContent.filter(item => {
+    const query = adminContentSearch.trim().toLowerCase();
+    const matchesSearch = !query
+      || String(item.titulo || '').toLowerCase().includes(query)
+      || String(item.autor || '').toLowerCase().includes(query);
+    const matchesStatus = adminContentStatusFilter === 'todos' || item.estado === adminContentStatusFilter;
+    return matchesSearch && matchesStatus;
+  });
+  const adminContentTotalPages = Math.max(1, Math.ceil(filteredAdminContent.length / adminPageSize));
+  const pagedAdminContent = filteredAdminContent.slice((adminContentPage - 1) * adminPageSize, adminContentPage * adminPageSize);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -365,8 +409,29 @@ export default function App() {
     }
   }, [view]);
 
+  useEffect(() => {
+    setAdminUserPage(1);
+  }, [adminUserSearch, adminUserRoleFilter, adminUserStatusFilter]);
+
+  useEffect(() => {
+    setAdminContentPage(1);
+  }, [adminContentSearch, adminContentStatusFilter]);
+
+  useEffect(() => {
+    setAdminUserPage(page => Math.min(page, adminUserTotalPages));
+  }, [adminUserTotalPages]);
+
+  useEffect(() => {
+    setAdminContentPage(page => Math.min(page, adminContentTotalPages));
+  }, [adminContentTotalPages]);
+
   const handleDeleteAdminUser = async (id: number) => {
-    if (!window.confirm("¿Eliminar usuario? Esta acción es irreversible.")) return;
+    const targetUser = adminUsers.find(item => item.id === id);
+    if (user?.id === id) {
+      alert('No puedes eliminar tu propio usuario desde el panel.');
+      return;
+    }
+    if (!window.confirm(`¿Eliminar definitivamente a "${targetUser?.nombre || 'este usuario'}"? Se borrarán sus datos relacionados y esta acción no se puede deshacer.`)) return;
     const res = await fetch(`${API_PREFIX}/admin/users.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -397,8 +462,33 @@ export default function App() {
     }
   };
 
+  const handleToggleAdminUserActive = async (targetUser: any) => {
+    if (user?.id === targetUser.id) {
+      alert('No puedes desactivar tu propio usuario.');
+      return;
+    }
+
+    const nextActive = !Boolean(Number(targetUser.activo));
+    const actionLabel = nextActive ? 'activar' : 'desactivar';
+    if (!window.confirm(`¿${actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1)} a "${targetUser.nombre}"? ${nextActive ? 'Podrá volver a usar su cuenta.' : 'No podrá usar su cuenta hasta que se reactive.'}`)) return;
+
+    const res = await fetch(`${API_PREFIX}/admin/users.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'toggle_active', id: targetUser.id, active: nextActive })
+    });
+
+    if (res.ok) {
+      fetchAdminData();
+    } else {
+      const data = await res.json().catch(() => null);
+      alert(data?.error || 'No se pudo actualizar el estado del usuario.');
+    }
+  };
+
   const handleDeleteAdminContent = async (id: number) => {
-    if (!window.confirm("¿Eliminar publicación? Esta acción es irreversible.")) return;
+    const targetContent = adminContent.find(item => item.id === id);
+    if (!window.confirm(`¿Eliminar la publicación "${targetContent?.titulo || 'seleccionada'}"? Se borrarán sus adjuntos y esta acción no se puede deshacer.`)) return;
     const formData = new FormData();
     formData.append('action', 'delete');
     formData.append('id', String(id));
@@ -416,6 +506,10 @@ export default function App() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim() || !password) {
+      alert('Escribe tu correo y contraseña antes de ingresar.');
+      return;
+    }
     const res = await fetch(`${API_PREFIX}/auth/login.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -426,12 +520,29 @@ export default function App() {
       setView('home');
       fetchContent();
     } else {
-      alert("Credenciales inválidas");
+      const data = await res.json().catch(() => null);
+      alert(data?.error || "Credenciales inválidas");
     }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!nombre.trim()) {
+      alert('Escribe tu nombre completo.');
+      return;
+    }
+    if (!email.includes('@')) {
+      alert('Escribe un correo electrónico válido.');
+      return;
+    }
+    if (password.length < 8) {
+      alert('La contraseña debe tener al menos 8 caracteres.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      alert('Las contraseñas no coinciden.');
+      return;
+    }
     const res = await fetch(`${API_PREFIX}/auth/register.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -439,14 +550,20 @@ export default function App() {
     });
     if (res.ok) {
       alert("Registrado correctamente. Ahora puedes iniciar sesión.");
+      setConfirmPassword('');
       setView('login');
     } else {
-      alert("Error al registrar");
+      const data = await res.json().catch(() => null);
+      alert(data?.error || "Error al registrar");
     }
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.includes('@')) {
+      alert('Escribe un correo electrónico válido.');
+      return;
+    }
     const res = await fetch(`${API_PREFIX}/auth/forgot-password.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -514,6 +631,24 @@ export default function App() {
 
   const handleCreateContent = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!title.trim()) {
+      alert('Escribe el título de la publicación.');
+      return;
+    }
+    if (!body.trim()) {
+      alert('Escribe el cuerpo de la publicación.');
+      return;
+    }
+    if (file) {
+      if (!ALLOWED_CONTENT_MIME_TYPES.includes(file.type)) {
+        alert('Formato no permitido. Usa PDF, JPG, PNG, WebP, MP3, WAV o MP4.');
+        return;
+      }
+      if (file.size > MAX_CONTENT_FILE_SIZE) {
+        alert('El archivo adjunto no puede superar 20 MB.');
+        return;
+      }
+    }
     const formData = new FormData();
     formData.append('accion', isEditing ? 'actualizar' : 'crear');
     formData.append('titulo', title);
@@ -718,6 +853,28 @@ export default function App() {
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!profileName.trim()) {
+      alert('El nombre del perfil no puede quedar vacío.');
+      return;
+    }
+    if (profileWebsite && !/^https?:\/\/.+/i.test(profileWebsite)) {
+      alert('El sitio web debe iniciar con http:// o https://');
+      return;
+    }
+    if (profileOrcid && !/^\d{4}-\d{4}-\d{4}-[\dX]{4}$/i.test(profileOrcid)) {
+      alert('El ORCID debe tener formato 0000-0000-0000-0000.');
+      return;
+    }
+    if (profilePhoto) {
+      if (!ALLOWED_PROFILE_PHOTO_TYPES.includes(profilePhoto.type)) {
+        alert('La foto de perfil debe ser JPG, PNG o WebP.');
+        return;
+      }
+      if (profilePhoto.size > MAX_PROFILE_PHOTO_SIZE) {
+        alert('La foto de perfil no puede superar 5 MB.');
+        return;
+      }
+    }
     const formData = new FormData();
     formData.append('nombre', profileName);
     formData.append('biografia', profileBio);
@@ -1216,6 +1373,19 @@ export default function App() {
                       />
                     </div>
                   )}
+                  {view === 'register' && (
+                    <div className="space-y-2">
+                      <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ml-1 ${monoMutedClass}`}>Confirmar Contraseña</label>
+                      <input
+                        type="password"
+                        required
+                        minLength={8}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`}
+                      />
+                    </div>
+                  )}
                   {view === 'reset-password' && (
                     <>
                       <div className="space-y-2">
@@ -1351,7 +1521,22 @@ export default function App() {
                         <input
                           type="file"
                           accept=".pdf,image/png,image/jpeg,image/webp,audio/mpeg,audio/wav,video/mp4"
-                          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                          onChange={(e) => {
+                            const selectedFile = e.target.files?.[0] ?? null;
+                            if (selectedFile && !ALLOWED_CONTENT_MIME_TYPES.includes(selectedFile.type)) {
+                              alert('Formato no permitido. Usa PDF, JPG, PNG, WebP, MP3, WAV o MP4.');
+                              e.target.value = '';
+                              setFile(null);
+                              return;
+                            }
+                            if (selectedFile && selectedFile.size > MAX_CONTENT_FILE_SIZE) {
+                              alert('El archivo adjunto no puede superar 20 MB.');
+                              e.target.value = '';
+                              setFile(null);
+                              return;
+                            }
+                            setFile(selectedFile);
+                          }}
                           className={`w-full px-4 py-3 border rounded focus:border-sky-500 outline-none transition-all font-mono text-xs file:mr-4 file:border-0 file:bg-sky-500/10 file:px-3 file:py-2 file:text-[10px] file:font-bold file:uppercase file:tracking-widest file:text-sky-400 ${inputClass}`}
                         />
                         <p className={`text-[10px] font-mono uppercase tracking-wide ${monoMutedClass}`}>
@@ -1433,12 +1618,39 @@ export default function App() {
               <div className="space-y-12">
                 {/* Users Table */}
                 <div className={`rounded border overflow-hidden ${panelClass}`}>
-                  <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
+                  <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between gap-4">
                     <h3 className={`font-bold uppercase tracking-widest text-xs ${titleClass}`}>Usuarios Registrados</h3>
-                    <span className="bg-sky-500/10 text-sky-400 px-3 py-1 rounded-full text-[10px] font-mono font-bold">{adminUsers.length}</span>
+                    <span className="bg-sky-500/10 text-sky-400 px-3 py-1 rounded-full text-[10px] font-mono font-bold">{filteredAdminUsers.length}</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_180px] gap-3 px-6 py-4 border-b border-white/5">
+                    <input
+                      value={adminUserSearch}
+                      onChange={e => setAdminUserSearch(e.target.value)}
+                      className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`}
+                      placeholder="Buscar usuario por nombre, correo o rol..."
+                    />
+                    <select
+                      value={adminUserRoleFilter}
+                      onChange={e => setAdminUserRoleFilter(e.target.value)}
+                      className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs uppercase ${inputClass}`}
+                    >
+                      <option value="todos">Todos los roles</option>
+                      <option value="admin">Admin</option>
+                      <option value="investigador">Investigador</option>
+                      <option value="publico">Usuario</option>
+                    </select>
+                    <select
+                      value={adminUserStatusFilter}
+                      onChange={e => setAdminUserStatusFilter(e.target.value)}
+                      className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs uppercase ${inputClass}`}
+                    >
+                      <option value="todos">Todos los estados</option>
+                      <option value="activo">Activos</option>
+                      <option value="inactivo">Inactivos</option>
+                    </select>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[760px] text-left text-sm">
+                    <table className="w-full min-w-[900px] text-left text-sm">
                       <thead className={`text-[10px] uppercase font-mono tracking-widest bg-black/20 ${monoMutedClass}`}>
                         <tr>
                           <th className="px-6 py-4 font-normal">Nombre</th>
@@ -1449,7 +1661,7 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5">
-                        {adminUsers.map(u => (
+                        {pagedAdminUsers.map(u => (
                           <tr key={u.id} className="hover:bg-white/5 transition-colors">
                             <td className={`px-6 py-4 font-bold ${titleClass}`}>{u.nombre}</td>
                             <td className={`px-6 py-4 ${textClass}`}>{u.email}</td>
@@ -1471,8 +1683,8 @@ export default function App() {
                               )}
                             </td>
                             <td className="px-6 py-4">
-                              <span className={`px-2 py-1 text-[9px] font-mono uppercase tracking-widest rounded ${u.activo ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>
-                                {u.activo ? 'Activo' : 'Inactivo'}
+                              <span className={`px-2 py-1 text-[9px] font-mono uppercase tracking-widest rounded ${Boolean(Number(u.activo)) ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>
+                                {Boolean(Number(u.activo)) ? 'Activo' : 'Inactivo'}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-right space-x-2">
@@ -1484,23 +1696,79 @@ export default function App() {
                               ) : (
                                 <button onClick={() => { setEditingRoleUserId(u.id); setEditingRoleValue(u.role); }} className={`px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded border transition-colors ${ghostButtonClass}`}>Editar</button>
                               )}
-                              <button onClick={() => handleDeleteAdminUser(u.id)} className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">Eliminar</button>
+                              <button
+                                onClick={() => handleToggleAdminUserActive(u)}
+                                disabled={user?.id === u.id}
+                                className={`px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                                  Boolean(Number(u.activo))
+                                    ? 'border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
+                                    : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                                }`}
+                              >
+                                {Boolean(Number(u.activo)) ? 'Desactivar' : 'Activar'}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteAdminUser(u.id)}
+                                disabled={user?.id === u.id}
+                                className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                Eliminar
+                              </button>
                             </td>
                           </tr>
                         ))}
-                        {adminUsers.length === 0 && (
+                        {filteredAdminUsers.length === 0 && (
                           <tr><td colSpan={5} className={`px-6 py-8 text-center text-xs font-mono uppercase ${monoMutedClass}`}>No hay usuarios</td></tr>
                         )}
                       </tbody>
                     </table>
                   </div>
+                  <div className="px-6 py-4 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <span className={`text-[10px] font-mono uppercase tracking-widest ${monoMutedClass}`}>
+                      Página {adminUserPage} de {adminUserTotalPages}
+                    </span>
+                    <div className="flex gap-2 w-full sm:w-auto">
+                      <button
+                        onClick={() => setAdminUserPage(page => Math.max(1, page - 1))}
+                        disabled={adminUserPage <= 1}
+                        className={`flex-1 sm:flex-none px-4 py-2 rounded border text-[10px] font-bold uppercase tracking-widest disabled:opacity-40 ${ghostButtonClass}`}
+                      >
+                        Anterior
+                      </button>
+                      <button
+                        onClick={() => setAdminUserPage(page => Math.min(adminUserTotalPages, page + 1))}
+                        disabled={adminUserPage >= adminUserTotalPages}
+                        className={`flex-1 sm:flex-none px-4 py-2 rounded border text-[10px] font-bold uppercase tracking-widest disabled:opacity-40 ${ghostButtonClass}`}
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Content Table */}
                 <div className={`rounded border overflow-hidden ${panelClass}`}>
-                  <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
+                  <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between gap-4">
                     <h3 className={`font-bold uppercase tracking-widest text-xs ${titleClass}`}>Todas las Publicaciones</h3>
-                    <span className="bg-sky-500/10 text-sky-400 px-3 py-1 rounded-full text-[10px] font-mono font-bold">{adminContent.length}</span>
+                    <span className="bg-sky-500/10 text-sky-400 px-3 py-1 rounded-full text-[10px] font-mono font-bold">{filteredAdminContent.length}</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-3 px-6 py-4 border-b border-white/5">
+                    <input
+                      value={adminContentSearch}
+                      onChange={e => setAdminContentSearch(e.target.value)}
+                      className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`}
+                      placeholder="Buscar publicación por título o autor..."
+                    />
+                    <select
+                      value={adminContentStatusFilter}
+                      onChange={e => setAdminContentStatusFilter(e.target.value)}
+                      className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs uppercase ${inputClass}`}
+                    >
+                      <option value="todos">Todos los estados</option>
+                      <option value="publicado">Publicado</option>
+                      <option value="borrador">Borrador</option>
+                      <option value="archivado">Archivado</option>
+                    </select>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[720px] text-left text-sm">
@@ -1514,7 +1782,7 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5">
-                        {adminContent.map(c => (
+                        {pagedAdminContent.map(c => (
                           <tr key={c.id} className="hover:bg-white/5 transition-colors">
                             <td className={`px-6 py-4 font-bold max-w-xs truncate ${titleClass}`}>{c.titulo}</td>
                             <td className={`px-6 py-4 ${textClass}`}>{c.autor}</td>
@@ -1532,11 +1800,32 @@ export default function App() {
                             </td>
                           </tr>
                         ))}
-                        {adminContent.length === 0 && (
+                        {filteredAdminContent.length === 0 && (
                           <tr><td colSpan={5} className={`px-6 py-8 text-center text-xs font-mono uppercase ${monoMutedClass}`}>No hay publicaciones</td></tr>
                         )}
                       </tbody>
                     </table>
+                  </div>
+                  <div className="px-6 py-4 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <span className={`text-[10px] font-mono uppercase tracking-widest ${monoMutedClass}`}>
+                      Página {adminContentPage} de {adminContentTotalPages}
+                    </span>
+                    <div className="flex gap-2 w-full sm:w-auto">
+                      <button
+                        onClick={() => setAdminContentPage(page => Math.max(1, page - 1))}
+                        disabled={adminContentPage <= 1}
+                        className={`flex-1 sm:flex-none px-4 py-2 rounded border text-[10px] font-bold uppercase tracking-widest disabled:opacity-40 ${ghostButtonClass}`}
+                      >
+                        Anterior
+                      </button>
+                      <button
+                        onClick={() => setAdminContentPage(page => Math.min(adminContentTotalPages, page + 1))}
+                        disabled={adminContentPage >= adminContentTotalPages}
+                        className={`flex-1 sm:flex-none px-4 py-2 rounded border text-[10px] font-bold uppercase tracking-widest disabled:opacity-40 ${ghostButtonClass}`}
+                      >
+                        Siguiente
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1585,8 +1874,21 @@ export default function App() {
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
                     onChange={(e) => {
-                      setProfilePhoto(e.target.files?.[0] ?? null);
-                      if (e.target.files?.[0]) setRemoveProfilePhoto(false);
+                      const selectedPhoto = e.target.files?.[0] ?? null;
+                      if (selectedPhoto && !ALLOWED_PROFILE_PHOTO_TYPES.includes(selectedPhoto.type)) {
+                        alert('La foto de perfil debe ser JPG, PNG o WebP.');
+                        e.target.value = '';
+                        setProfilePhoto(null);
+                        return;
+                      }
+                      if (selectedPhoto && selectedPhoto.size > MAX_PROFILE_PHOTO_SIZE) {
+                        alert('La foto de perfil no puede superar 5 MB.');
+                        e.target.value = '';
+                        setProfilePhoto(null);
+                        return;
+                      }
+                      setProfilePhoto(selectedPhoto);
+                      if (selectedPhoto) setRemoveProfilePhoto(false);
                     }}
                     className={`w-full px-3 py-3 border rounded outline-none transition-all font-mono text-xs file:mr-3 file:border-0 file:bg-sky-500/10 file:px-3 file:py-2 file:text-[10px] file:font-bold file:uppercase file:tracking-widest file:text-sky-400 ${inputClass}`}
                   />
