@@ -75,6 +75,67 @@ function ensureContentCommentsTable(PDO $pdo): void {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 }
 
+function ensureCategoriesReady(PDO $pdo): void {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS categorias (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        nombre VARCHAR(100) NOT NULL,
+        slug VARCHAR(100) NOT NULL UNIQUE,
+        descripcion TEXT,
+        PRIMARY KEY (id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS contenido_categorias (
+        contenido_id BIGINT UNSIGNED NOT NULL,
+        categoria_id BIGINT UNSIGNED NOT NULL,
+        PRIMARY KEY (contenido_id, categoria_id),
+        FOREIGN KEY (contenido_id) REFERENCES contenido(id) ON DELETE CASCADE,
+        FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $defaultCategories = [
+        ['Educación', 'educacion', 'Investigación y práctica educativa'],
+        ['Tecnología', 'tecnologia', 'Herramientas, plataformas e innovación tecnológica'],
+        ['Ciencias Sociales', 'ciencias-sociales', 'Estudios sociales, comunidad y cultura'],
+        ['Salud', 'salud', 'Investigación relacionada con bienestar y ciencias de la salud'],
+        ['Inteligencia Artificial', 'inteligencia-artificial', 'Aplicaciones, modelos y análisis con IA'],
+        ['Investigación Educativa', 'investigacion-educativa', 'Líneas, métodos y resultados de investigación educativa'],
+    ];
+
+    $stmt = $pdo->prepare("INSERT IGNORE INTO categorias (nombre, slug, descripcion) VALUES (?, ?, ?)");
+    foreach ($defaultCategories as $category) {
+        $stmt->execute($category);
+    }
+}
+
+function ensureUserProfilesTable(PDO $pdo): void {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS usuarios_perfiles (
+        usuario_id BIGINT UNSIGNED NOT NULL,
+        biografia TEXT NULL,
+        institucion VARCHAR(255) NULL,
+        telefono VARCHAR(50) NULL,
+        ubicacion VARCHAR(255) NULL,
+        sitio_web VARCHAR(255) NULL,
+        orcid VARCHAR(32) NULL,
+        lineas_investigacion TEXT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (usuario_id),
+        CONSTRAINT fk_usuarios_perfiles_usuario
+          FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $stmt = $pdo->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios_perfiles'");
+    $stmt->execute();
+    $columns = array_column($stmt->fetchAll(), 'COLUMN_NAME');
+
+    if (!in_array('orcid', $columns, true)) {
+        $pdo->exec("ALTER TABLE usuarios_perfiles ADD COLUMN orcid VARCHAR(32) NULL AFTER sitio_web");
+    }
+
+    if (!in_array('lineas_investigacion', $columns, true)) {
+        $pdo->exec("ALTER TABLE usuarios_perfiles ADD COLUMN lineas_investigacion TEXT NULL AFTER orcid");
+    }
+}
+
 function appBaseUrl() {
     $configuredUrl = getenv('APP_URL');
     if ($configuredUrl) {

@@ -44,6 +44,8 @@ interface UserInfo {
   telefono?: string | null;
   ubicacion?: string | null;
   sitio_web?: string | null;
+  orcid?: string | null;
+  lineas_investigacion?: string | null;
   foto_nombre?: string | null;
   foto_url?: string | null;
   foto_mime_type?: string | null;
@@ -55,6 +57,8 @@ interface ContentItem {
   cuerpo: string;
   autor: string;
   autor_id: number;
+  autor_foto_url?: string | null;
+  autor_foto_mime_type?: string | null;
   tipo: string;
   tipo_id: number;
   estado: 'publicado' | 'borrador' | 'archivado';
@@ -66,6 +70,7 @@ interface ContentItem {
   comments_count: number;
   user_liked: boolean;
   autor_rol: string;
+  categories?: CategoryItem[];
 }
 
 interface CommentItem {
@@ -75,6 +80,34 @@ interface CommentItem {
   autor: string;
   comentario: string;
   created_at: string;
+}
+
+interface CategoryItem {
+  id: number;
+  nombre: string;
+  slug: string;
+  descripcion?: string | null;
+}
+
+interface ContentMeta {
+  page: number;
+  per_page: number;
+  total: number;
+  total_pages: number;
+  q: string;
+  category_id: number;
+}
+
+interface AuthorPublication {
+  id: number;
+  titulo: string;
+  tipo: string;
+  created_at: string;
+}
+
+interface AuthorProfileData {
+  profile: UserInfo;
+  publications: AuthorPublication[];
 }
 
 const API_PREFIX = 'api';
@@ -91,6 +124,11 @@ export default function App() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [content, setContent] = useState<ContentItem[]>([]);
+  const [contentMeta, setContentMeta] = useState<ContentMeta>({ page: 1, per_page: 9, total: 0, total_pages: 1, q: '', category_id: 0 });
+  const [contentLoading, setContentLoading] = useState(false);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState(0);
   const [loading, setLoading] = useState(true);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [adminContent, setAdminContent] = useState<any[]>([]);
@@ -101,6 +139,9 @@ export default function App() {
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentBody, setCommentBody] = useState('');
   const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [authorProfile, setAuthorProfile] = useState<AuthorProfileData | null>(null);
+  const [authorProfileLoading, setAuthorProfileLoading] = useState(false);
+  const [isAuthorProfileOpen, setIsAuthorProfileOpen] = useState(false);
 
   // Form states
   const [email, setEmail] = useState('');
@@ -115,6 +156,7 @@ export default function App() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [typeId, setTypeId] = useState(1);
+  const [categoryId, setCategoryId] = useState(0);
   const [status, setStatus] = useState<'publicado' | 'borrador'>('publicado');
   const [file, setFile] = useState<File | null>(null);
   const [editingContentId, setEditingContentId] = useState<number | null>(null);
@@ -126,6 +168,8 @@ export default function App() {
   const [profilePhone, setProfilePhone] = useState('');
   const [profileLocation, setProfileLocation] = useState('');
   const [profileWebsite, setProfileWebsite] = useState('');
+  const [profileOrcid, setProfileOrcid] = useState('');
+  const [profileResearchLines, setProfileResearchLines] = useState('');
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
   const [removeProfilePhoto, setRemoveProfilePhoto] = useState(false);
   const isDark = theme === 'dark';
@@ -154,7 +198,8 @@ export default function App() {
 
   useEffect(() => {
     checkAuth();
-    fetchContent();
+    fetchCategories();
+    fetchContent(1);
 
     const token = new URLSearchParams(window.location.search).get('reset_token');
     if (token) {
@@ -168,15 +213,27 @@ export default function App() {
     if (!selectedContent) {
       setComments([]);
       setCommentBody('');
+      setAuthorProfile(null);
+      setIsAuthorProfileOpen(false);
       return;
     }
 
     fetchComments(selectedContent.id);
+    setAuthorProfile(null);
+    setIsAuthorProfileOpen(false);
   }, [selectedContent?.id]);
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [view]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      fetchContent(1);
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [searchQuery, selectedCategoryId]);
 
   const checkAuth = async () => {
     try {
@@ -193,15 +250,47 @@ export default function App() {
     }
   };
 
-  const fetchContent = async () => {
+  const fetchContent = async (page = contentMeta.page) => {
+    setContentLoading(true);
     try {
-      const res = await fetch(`${API_PREFIX}/contenido.php`);
+      const params = new URLSearchParams({
+        page: String(page),
+        per_page: String(contentMeta.per_page),
+      });
+      if (searchQuery.trim()) {
+        params.set('q', searchQuery.trim());
+      }
+      if (selectedCategoryId > 0) {
+        params.set('category_id', String(selectedCategoryId));
+      }
+
+      const res = await fetch(`${API_PREFIX}/contenido.php?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        setContent(data);
+        if (Array.isArray(data)) {
+          setContent(data);
+          setContentMeta(prev => ({ ...prev, page: 1, total: data.length, total_pages: 1 }));
+        } else {
+          setContent(data.items || []);
+          setContentMeta(data.meta || { page, per_page: 9, total: 0, total_pages: 1, q: '', category_id: 0 });
+        }
       }
     } catch (e) {
       console.error("Fetch content failed", e);
+    } finally {
+      setContentLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch(`${API_PREFIX}/categories.php`);
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(data);
+      }
+    } catch (e) {
+      console.error("Fetch categories failed", e);
     }
   };
 
@@ -221,6 +310,36 @@ export default function App() {
     } finally {
       setCommentsLoading(false);
     }
+  };
+
+  const fetchAuthorProfile = async (authorId: number) => {
+    setAuthorProfileLoading(true);
+    try {
+      const res = await fetch(`${API_PREFIX}/author.php?id=${authorId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAuthorProfile(data);
+      } else {
+        setAuthorProfile(null);
+      }
+    } catch (e) {
+      console.error("Fetch author profile failed", e);
+      setAuthorProfile(null);
+    } finally {
+      setAuthorProfileLoading(false);
+    }
+  };
+
+  const handleToggleAuthorProfile = () => {
+    if (!selectedContent) return;
+
+    setIsAuthorProfileOpen(prev => {
+      const next = !prev;
+      if (next && (!authorProfile || authorProfile.profile.id !== selectedContent.autor_id)) {
+        fetchAuthorProfile(selectedContent.autor_id);
+      }
+      return next;
+    });
   };
 
   const fetchAdminData = async () => {
@@ -387,6 +506,8 @@ export default function App() {
     setProfilePhone(profile.telefono || '');
     setProfileLocation(profile.ubicacion || '');
     setProfileWebsite(profile.sitio_web || '');
+    setProfileOrcid(profile.orcid || '');
+    setProfileResearchLines(profile.lineas_investigacion || '');
     setProfilePhoto(null);
     setRemoveProfilePhoto(false);
   };
@@ -398,6 +519,7 @@ export default function App() {
     formData.append('titulo', title);
     formData.append('cuerpo', body);
     formData.append('tipo_id', String(typeId));
+    formData.append('category_id', String(categoryId));
     formData.append('estado', status);
     if (isEditing) {
       formData.append('id', String(editingContentId));
@@ -426,6 +548,7 @@ export default function App() {
     setTitle('');
     setBody('');
     setTypeId(1);
+    setCategoryId(0);
     setStatus('publicado');
     setFile(null);
     setEditingContentId(null);
@@ -443,6 +566,7 @@ export default function App() {
     setTitle(item.titulo);
     setBody(item.cuerpo);
     setTypeId(item.tipo_id);
+    setCategoryId(item.categories?.[0]?.id || 0);
     setStatus(item.estado === 'borrador' ? 'borrador' : 'publicado');
     setFile(null);
     setCurrentAttachment(item.archivo_url ? { name: item.archivo_nombre || 'Adjunto actual', url: item.archivo_url } : null);
@@ -601,6 +725,8 @@ export default function App() {
     formData.append('telefono', profilePhone);
     formData.append('ubicacion', profileLocation);
     formData.append('sitio_web', profileWebsite);
+    formData.append('orcid', profileOrcid);
+    formData.append('lineas_investigacion', profileResearchLines);
     formData.append('remove_photo', removeProfilePhoto ? '1' : '0');
     if (profilePhoto) {
       formData.append('foto', profilePhoto);
@@ -841,6 +967,48 @@ export default function App() {
                 </div>
               </div>
 
+              <div className={`mb-8 grid grid-cols-1 lg:grid-cols-[1fr_260px_auto] gap-3 rounded border p-3 sm:p-4 ${panelClass}`}>
+                <div className="relative">
+                  <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${monoMutedClass}`} />
+                  <input
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className={`w-full rounded border py-3 pl-10 pr-4 text-sm outline-none transition-all ${inputClass}`}
+                    placeholder="Buscar por título, contenido, autor o tipo..."
+                  />
+                </div>
+                <select
+                  value={selectedCategoryId}
+                  onChange={e => setSelectedCategoryId(Number(e.target.value))}
+                  className={`w-full rounded border px-4 py-3 text-xs font-mono uppercase outline-none transition-all ${inputClass}`}
+                >
+                  <option value={0}>Todas las categorías</option>
+                  {categories.map(category => (
+                    <option key={category.id} value={category.id}>{category.nombre}</option>
+                  ))}
+                </select>
+                {(searchQuery || selectedCategoryId > 0) && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSelectedCategoryId(0);
+                    }}
+                    className={`rounded border px-4 py-3 text-[10px] font-bold uppercase tracking-widest transition-colors ${ghostButtonClass}`}
+                  >
+                    Limpiar
+                  </button>
+                )}
+              </div>
+
+              <div className={`mb-5 flex flex-wrap items-center justify-between gap-3 text-[10px] font-mono uppercase tracking-widest ${monoMutedClass}`}>
+                <span>
+                  {contentLoading ? 'Buscando publicaciones...' : `${contentMeta.total} publicaciones encontradas`}
+                </span>
+                <span>
+                  Página {contentMeta.page} de {contentMeta.total_pages}
+                </span>
+              </div>
+
               <div className={layoutView === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" : "flex flex-col gap-6"}>
                 {content.length > 0 ? content.map(item => (
                   <motion.div 
@@ -853,6 +1021,11 @@ export default function App() {
                         <span className="px-3 py-1 bg-white/5 text-sky-400 text-[9px] font-mono font-bold uppercase rounded border border-white/10 tracking-widest">
                           {item.tipo}
                         </span>
+                        {item.categories?.[0] && (
+                          <span className={`px-3 py-1 text-[9px] font-mono font-bold uppercase rounded border tracking-widest ${isDark ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                            {item.categories[0].nombre}
+                          </span>
+                        )}
                         <time className={`text-[9px] font-mono uppercase tracking-tighter ${monoMutedClass}`}>
                           FECHA: {new Date(item.created_at).toISOString().split('T')[0]}
                         </time>
@@ -899,9 +1072,17 @@ export default function App() {
                     )}
                     <div className="pt-6 border-t border-white/5 flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <div className="size-8 bg-white/5 rounded flex items-center justify-center text-slate-500 border border-white/10">
-                          <User size={14} />
-                        </div>
+                        {item.autor_foto_url ? (
+                          <img
+                            src={item.autor_foto_url}
+                            alt={item.autor}
+                            className="size-8 rounded object-cover border border-sky-500/30"
+                          />
+                        ) : (
+                          <div className="size-8 bg-white/5 rounded flex items-center justify-center text-slate-500 border border-white/10">
+                            <User size={14} />
+                          </div>
+                        )}
                         <div>
                           <p className={`text-[10px] font-bold leading-none uppercase tracking-wide ${textClass}`}>{item.autor}</p>
                           <p className={`text-[8px] font-mono uppercase mt-1 ${monoMutedClass}`}>Autor Verificado</p>
@@ -938,6 +1119,28 @@ export default function App() {
                   </div>
                 )}
               </div>
+
+              {contentMeta.total_pages > 1 && (
+                <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <button
+                    onClick={() => fetchContent(contentMeta.page - 1)}
+                    disabled={contentMeta.page <= 1 || contentLoading}
+                    className={`w-full sm:w-auto rounded border px-5 py-3 text-[10px] font-bold uppercase tracking-widest transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${ghostButtonClass}`}
+                  >
+                    Anterior
+                  </button>
+                  <span className={`text-[10px] font-mono uppercase tracking-widest ${monoMutedClass}`}>
+                    Mostrando {content.length} de {contentMeta.total}
+                  </span>
+                  <button
+                    onClick={() => fetchContent(contentMeta.page + 1)}
+                    disabled={contentMeta.page >= contentMeta.total_pages || contentLoading}
+                    className={`w-full sm:w-auto rounded border px-5 py-3 text-[10px] font-bold uppercase tracking-widest transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${ghostButtonClass}`}
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -1127,6 +1330,20 @@ export default function App() {
                             <option value="borrador">Borrador Privado</option>
                           </select>
                         </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ml-1 ${monoMutedClass}`}>Categoría</label>
+                        <select
+                          value={categoryId}
+                          onChange={(e) => setCategoryId(Number(e.target.value))}
+                          className={`w-full px-4 py-4 border rounded outline-none transition-all font-mono text-xs appearance-none ${inputClass}`}
+                        >
+                          <option value={0}>Sin categoría</option>
+                          {categories.map(category => (
+                            <option key={category.id} value={category.id}>{category.nombre}</option>
+                          ))}
+                        </select>
                       </div>
 
                       <div className="space-y-2">
@@ -1422,6 +1639,27 @@ export default function App() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ${monoMutedClass}`}>ORCID</label>
+                    <input
+                      value={profileOrcid}
+                      onChange={(e) => setProfileOrcid(e.target.value)}
+                      className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`}
+                      placeholder="0000-0000-0000-0000"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ${monoMutedClass}`}>Líneas de investigación</label>
+                    <input
+                      value={profileResearchLines}
+                      onChange={(e) => setProfileResearchLines(e.target.value)}
+                      className={`w-full px-4 py-3 border rounded outline-none transition-all font-mono text-xs ${inputClass}`}
+                      placeholder="IA educativa, evaluación, analítica..."
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <label className={`block text-[10px] font-mono font-bold uppercase tracking-widest ${monoMutedClass}`}>Biografía</label>
                   <textarea
@@ -1567,9 +1805,17 @@ export default function App() {
               </h2>
 
               <div className="flex flex-wrap items-center gap-4 mb-8 pb-8 border-b border-white/5">
-                <div className="size-10 bg-sky-500/10 rounded flex items-center justify-center text-sky-400 border border-sky-500/20">
-                  <User size={18} />
-                </div>
+                {selectedContent.autor_foto_url ? (
+                  <img
+                    src={selectedContent.autor_foto_url}
+                    alt={selectedContent.autor}
+                    className="size-10 rounded object-cover border border-sky-500/30"
+                  />
+                ) : (
+                  <div className="size-10 bg-sky-500/10 rounded flex items-center justify-center text-sky-400 border border-sky-500/20">
+                    <User size={18} />
+                  </div>
+                )}
                 <div>
                   <p className={`text-xs font-bold uppercase tracking-widest ${textClass}`}>{selectedContent.autor}</p>
                   <p className={`text-[9px] font-mono uppercase mt-1 ${monoMutedClass}`}>Investigador Verificado</p>
@@ -1605,6 +1851,128 @@ export default function App() {
                   </a>
                 </div>
               )}
+
+              <section className="mt-8 pt-6 border-t border-white/5">
+                <button
+                  onClick={handleToggleAuthorProfile}
+                  className={`inline-flex items-center gap-2 rounded border px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-colors ${ghostButtonClass}`}
+                >
+                  <User size={14} />
+                  {isAuthorProfileOpen ? 'Ocultar perfil académico' : 'Ver perfil académico'}
+                </button>
+
+                {isAuthorProfileOpen && (
+                  <div className="mt-5">
+                    {authorProfileLoading ? (
+                      <p className={`text-xs font-mono uppercase tracking-widest ${monoMutedClass}`}>
+                        Cargando perfil del autor...
+                      </p>
+                    ) : authorProfile ? (
+                      <div className={`rounded border p-4 ${panelSoftClass}`}>
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      {authorProfile.profile.foto_url ? (
+                        <img
+                          src={authorProfile.profile.foto_url}
+                          alt={authorProfile.profile.nombre}
+                          className="size-16 rounded object-cover border border-sky-500/30"
+                        />
+                      ) : (
+                        <div className="size-16 rounded bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 font-bold text-xl">
+                          {authorProfile.profile.nombre?.slice(0, 1).toUpperCase() || 'A'}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-sm font-bold uppercase tracking-widest ${titleClass}`}>
+                          {authorProfile.profile.nombre}
+                        </p>
+                        {authorProfile.profile.institucion && (
+                          <p className={`mt-1 text-xs ${textClass}`}>{authorProfile.profile.institucion}</p>
+                        )}
+                        {authorProfile.profile.biografia && (
+                          <p className={`mt-3 text-sm leading-relaxed ${textClass}`}>
+                            {authorProfile.profile.biografia}
+                          </p>
+                        )}
+                        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {authorProfile.profile.orcid && (
+                            <a
+                              href={`https://orcid.org/${authorProfile.profile.orcid}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="rounded border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-widest text-sky-400 hover:bg-sky-500 hover:text-white transition-colors"
+                            >
+                              ORCID {authorProfile.profile.orcid}
+                            </a>
+                          )}
+                          {authorProfile.profile.sitio_web && (
+                            <a
+                              href={authorProfile.profile.sitio_web}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`rounded border px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-widest transition-colors ${ghostButtonClass}`}
+                            >
+                              Sitio web
+                            </a>
+                          )}
+                        </div>
+                        {authorProfile.profile.lineas_investigacion && (
+                          <div className="mt-4">
+                            <p className={`text-[10px] font-mono font-bold uppercase tracking-widest mb-2 ${monoMutedClass}`}>
+                              Líneas de investigación
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {authorProfile.profile.lineas_investigacion.split(',').map((linea, idx) => {
+                                const cleanLine = linea.trim();
+                                if (!cleanLine) return null;
+                                return (
+                                  <span key={`${cleanLine}-${idx}`} className={`rounded-full border px-3 py-1 text-[10px] font-mono uppercase tracking-widest ${isDark ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+                                    {cleanLine}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-6 border-t border-white/5 pt-5">
+                      <p className={`text-[10px] font-mono font-bold uppercase tracking-widest mb-3 ${monoMutedClass}`}>
+                        Publicaciones recientes del autor
+                      </p>
+                      {authorProfile.publications.length > 0 ? (
+                        <div className="space-y-2">
+                          {authorProfile.publications.map(publication => (
+                            <button
+                              key={publication.id}
+                              onClick={() => {
+                                const target = content.find(item => item.id === publication.id);
+                                if (target) setSelectedContent(target);
+                              }}
+                              className={`block w-full rounded border px-3 py-3 text-left transition-colors ${ghostButtonClass}`}
+                            >
+                              <span className={`block text-xs font-bold ${titleClass}`}>{publication.titulo}</span>
+                              <span className={`mt-1 block text-[9px] font-mono uppercase tracking-widest ${monoMutedClass}`}>
+                                {publication.tipo} · {new Date(publication.created_at).toISOString().split('T')[0]}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className={`text-xs font-mono uppercase tracking-widest ${monoMutedClass}`}>
+                          Este autor aún no tiene otras publicaciones públicas.
+                        </p>
+                      )}
+                    </div>
+                      </div>
+                    ) : (
+                      <p className={`text-xs font-mono uppercase tracking-widest ${monoMutedClass}`}>
+                        No se pudo cargar el perfil del autor.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </section>
 
               <section className="mt-8 pt-8 border-t border-white/5">
                 <div className="flex items-center justify-between gap-4 mb-5">

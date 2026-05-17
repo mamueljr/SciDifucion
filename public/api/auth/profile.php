@@ -1,20 +1,7 @@
 <?php
 require_once '../config.php';
 
-$profileTableSql = "CREATE TABLE IF NOT EXISTS usuarios_perfiles (
-    usuario_id BIGINT UNSIGNED NOT NULL,
-    biografia TEXT NULL,
-    institucion VARCHAR(255) NULL,
-    telefono VARCHAR(50) NULL,
-    ubicacion VARCHAR(255) NULL,
-    sitio_web VARCHAR(255) NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (usuario_id),
-    CONSTRAINT fk_usuarios_perfiles_usuario
-      FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
-
-$pdo->exec($profileTableSql);
+ensureUserProfilesTable($pdo);
 
 $uploadsDir = dirname(__DIR__) . '/uploads';
 $maxImageSize = 5 * 1024 * 1024;
@@ -47,6 +34,7 @@ function fetchProfile(PDO $pdo, int $userId): array
     $stmt = $pdo->prepare(
         "SELECT u.id, u.nombre, u.email,
                 up.biografia, up.institucion, up.telefono, up.ubicacion, up.sitio_web,
+                up.orcid, up.lineas_investigacion,
                 a.nombre_original AS foto_nombre, a.ruta AS foto_url, a.mime_type AS foto_mime_type
          FROM usuarios u
          LEFT JOIN usuarios_perfiles up ON up.usuario_id = u.id
@@ -85,8 +73,16 @@ $institucion = trim($_POST['institucion'] ?? '');
 $telefono = trim($_POST['telefono'] ?? '');
 $ubicacion = trim($_POST['ubicacion'] ?? '');
 $sitioWeb = trim($_POST['sitio_web'] ?? '');
+$orcid = trim($_POST['orcid'] ?? '');
+$lineasInvestigacion = trim($_POST['lineas_investigacion'] ?? '');
 $foto = $_FILES['foto'] ?? null;
 $removePhoto = ($_POST['remove_photo'] ?? '0') === '1';
+
+if ($orcid !== '' && !preg_match('/^\d{4}-\d{4}-\d{4}-[\dX]{4}$/i', $orcid)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'El ORCID debe tener formato 0000-0000-0000-0000']);
+    exit;
+}
 
 $savedFilePath = null;
 $publicFilePath = null;
@@ -154,16 +150,27 @@ try {
     }
 
     $stmt = $pdo->prepare(
-        "INSERT INTO usuarios_perfiles (usuario_id, biografia, institucion, telefono, ubicacion, sitio_web)
-         VALUES (?, ?, ?, ?, ?, ?)
+        "INSERT INTO usuarios_perfiles (usuario_id, biografia, institucion, telefono, ubicacion, sitio_web, orcid, lineas_investigacion)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
          biografia = VALUES(biografia),
          institucion = VALUES(institucion),
          telefono = VALUES(telefono),
          ubicacion = VALUES(ubicacion),
-         sitio_web = VALUES(sitio_web)"
+         sitio_web = VALUES(sitio_web),
+         orcid = VALUES(orcid),
+         lineas_investigacion = VALUES(lineas_investigacion)"
     );
-    $stmt->execute([$user['id'], $biografia ?: null, $institucion ?: null, $telefono ?: null, $ubicacion ?: null, $sitioWeb ?: null]);
+    $stmt->execute([
+        $user['id'],
+        $biografia ?: null,
+        $institucion ?: null,
+        $telefono ?: null,
+        $ubicacion ?: null,
+        $sitioWeb ?: null,
+        $orcid ?: null,
+        $lineasInvestigacion ?: null,
+    ]);
 
     if (($removePhoto || $publicFilePath) && !empty($currentProfile['foto_url'])) {
         $stmt = $pdo->prepare("DELETE FROM archivos WHERE entidad_tipo = 'usuario' AND entidad_id = ?");

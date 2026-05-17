@@ -139,6 +139,23 @@ Roles reales/conceptuales:
 - Estados soportados: `publicado`, `borrador`, `archivado`.
 - El frontend usa principalmente `publicado` y `borrador`.
 - Las tarjetas muestran conteo de likes y comentarios.
+- El repositorio tiene búsqueda real contra la API por título, cuerpo, autor y tipo.
+- El listado usa paginación desde `public/api/contenido.php` con 9 publicaciones por página.
+- Se puede filtrar el repositorio por categoría.
+- Al crear o editar publicaciones se puede asignar una categoría.
+- Las tarjetas muestran la categoría principal como etiqueta cuando existe.
+- Las tarjetas y detalles muestran la foto de perfil del autor si existe; si no, usan el avatar genérico.
+
+### Categorías
+
+El sistema usa `categorias` y `contenido_categorias`.
+
+Comportamiento actual:
+
+- Las categorías se consultan desde `public/api/categories.php`.
+- `public/api/config.php` incluye `ensureCategoriesReady()` para crear tablas y sembrar categorías base si no existen.
+- Existe migración formal en `migrations/003_categories_seed.sql`.
+- Categorías base: Educación, Tecnología, Ciencias Sociales, Salud, Inteligencia Artificial e Investigación Educativa.
 
 ### Archivos
 
@@ -169,9 +186,26 @@ El perfil permite:
 - Teléfono.
 - Ubicación.
 - Sitio web.
+- ORCID.
+- Líneas de investigación.
 - Foto de perfil.
 
 La tabla `usuarios_perfiles` existe en `database.sql`, y además `me.php` y `profile.php` la crean dinámicamente si no existe.
+
+### Perfiles Académicos Públicos
+
+El sistema usa `public/api/author.php` para mostrar información académica del autor desde la vista de detalles.
+
+Comportamiento actual:
+
+- En el perfil editable se pueden guardar ORCID y líneas de investigación.
+- El ORCID se valida con formato `0000-0000-0000-0000`.
+- La vista de detalles muestra el botón discreto `Ver perfil académico`.
+- El perfil académico del autor se carga y despliega solo cuando el usuario pulsa ese botón.
+- El bloque académico puede mostrar foto, institución, biografía, ORCID, sitio web y líneas de investigación.
+- La vista de detalles lista hasta 6 publicaciones públicas recientes del autor.
+- `public/api/config.php` incluye `ensureUserProfilesTable()` para crear la tabla y agregar columnas académicas si faltan.
+- Existe migración formal en `migrations/004_academic_profile_fields.sql`.
 
 ### Panel Admin
 
@@ -272,6 +306,8 @@ Observación importante:
 
 - `database.sql` ya define `contenido_likes` y `contenido_comentarios` para instalaciones limpias.
 - Para bases existentes, los comentarios también pueden prepararse con `migrations/002_content_comments.sql`; además la API PHP intenta crear `contenido_comentarios` en runtime si no existe.
+- Para bases existentes, las categorías también pueden prepararse con `migrations/003_categories_seed.sql`; además la API PHP intenta crear `categorias` y `contenido_categorias` en runtime si no existen.
+- Para bases existentes, los campos académicos de perfil también pueden prepararse con `migrations/004_academic_profile_fields.sql`; además la API PHP intenta agregar `orcid` y `lineas_investigacion` en runtime si no existen.
 
 ## 8. Configuración y Secretos
 
@@ -334,14 +370,35 @@ Notas:
 
 ### Prioridad Baja / Valor Futuro
 
-- [ ] Agregar paginación y búsqueda real en el repositorio para cuando crezca el volumen de publicaciones.
-- [ ] Integrar categorías funcionales en la UI, ya que existen tablas relacionadas pero no una experiencia completa.
-- [ ] Mejorar perfiles académicos con campos como ORCID, líneas de investigación y publicaciones del autor.
+- [x] Agregar paginación y búsqueda real en el repositorio para cuando crezca el volumen de publicaciones.
+- [x] Integrar categorías funcionales en la UI, ya que existen tablas relacionadas pero no una experiencia completa.
+- [x] Mejorar perfiles académicos con campos como ORCID, líneas de investigación y publicaciones del autor.
 - [ ] Usar la tabla `auditoria` para registrar acciones importantes: login, creación, edición, eliminación, cambio de rol y recuperación de contraseña.
 - [ ] Actualizar `PRESENTACION_SCIDIFUSION.md` con funciones recientes: likes, comentarios, perfil extendido, panel admin, encuestas y recuperación de contraseña.
 - [ ] Preparar una versión estable 1.1 con changelog, tag de GitHub y lista de verificación de producción.
 
-## 11. Instrucciones para Continuar
+## 11. Punto de Control Actual
+
+Estado validado tras las últimas mejoras:
+
+- Comentarios funcionando en detalles, visibles para invitados y publicables solo por usuarios autenticados.
+- Sitio adaptado a móvil con header compacto, menú `Menu/X`, modal de detalles responsive y tablas admin con scroll horizontal.
+- Repositorio con búsqueda real desde API, paginación de 9 publicaciones por página y filtro por categoría.
+- Categorías funcionales con endpoint `public/api/categories.php`, selector al crear/editar y etiqueta en tarjetas.
+- Perfiles académicos extendidos con ORCID y líneas de investigación.
+- Perfil académico del autor disponible bajo demanda desde detalles con botón `Ver perfil académico`; no se muestra automáticamente.
+- Tarjetas y detalles muestran foto de perfil del autor si existe; si no, conservan el avatar genérico.
+- Migraciones nuevas disponibles:
+  - `migrations/002_content_comments.sql`
+  - `migrations/003_categories_seed.sql`
+  - `migrations/004_academic_profile_fields.sql`
+- `database.sql` actualizado para instalaciones limpias.
+- Las APIs PHP crean o preparan tablas auxiliares en runtime cuando aplica.
+- Últimas verificaciones ejecutadas correctamente: `npm run lint` y `npm run build`.
+
+Este punto es buen candidato para commit de control antes de seguir con auditoría, seguridad de sesiones, documentación mayor o panel admin avanzado.
+
+## 12. Instrucciones para Continuar
 
 Si eres un asistente de IA o un nuevo desarrollador:
 

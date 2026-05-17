@@ -109,33 +109,64 @@ $sessionUser = $_SESSION['user'] ?? null;
 if ($requestMethod === 'GET') {
     try {
         ensureContentCommentsTable($pdo);
+        ensureCategoriesReady($pdo);
     } catch (PDOException $e) {
         http_response_code(500);
-        echo json_encode(['error' => 'No se pudo preparar la tabla de comentarios']);
+        echo json_encode(['error' => 'No se pudieron preparar tablas auxiliares']);
         exit;
     }
 
     $userId = $sessionUser ? $sessionUser['id'] : 0;
-    
-    $whereClause = "WHERE c.estado = 'publicado'";
-    $params = [$userId]; 
+    $search = trim((string) ($_GET['q'] ?? ''));
+    $categoryId = isset($_GET['category_id']) ? (int) $_GET['category_id'] : 0;
+    $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+    $perPage = isset($_GET['per_page']) ? (int) $_GET['per_page'] : 9;
+    $perPage = max(1, min(24, $perPage));
+    $offset = ($page - 1) * $perPage;
+
+    $whereParts = ["(c.estado = 'publicado'"];
+    $whereParams = [];
     if ($sessionUser) {
-        $whereClause .= " OR c.autor_id = ?";
-        $params[] = $sessionUser['id'];
+        $whereParts[0] .= " OR c.autor_id = ?";
+        $whereParams[] = $sessionUser['id'];
+    }
+    $whereParts[0] .= ")";
+
+    if ($search !== '') {
+        $whereParts[] = "(c.titulo LIKE ? OR c.cuerpo LIKE ? OR u.nombre LIKE ? OR t.nombre LIKE ?)";
+        $searchTerm = '%' . $search . '%';
+        array_push($whereParams, $searchTerm, $searchTerm, $searchTerm, $searchTerm);
     }
 
+    if ($categoryId > 0) {
+        $whereParts[] = "EXISTS (
+            SELECT 1 FROM contenido_categorias cc_filter
+            WHERE cc_filter.contenido_id = c.id AND cc_filter.categoria_id = ?
+        )";
+        $whereParams[] = $categoryId;
+    }
+
+    $whereClause = "WHERE " . implode(" AND ", $whereParts);
+
     $sql = "SELECT c.id, c.titulo, c.cuerpo, c.estado, c.created_at, c.autor_id, c.tipo_id,
-                   u.nombre AS autor, t.nombre AS tipo, r.nombre AS autor_rol,
+                   u.nombre AS autor, author_photo.ruta AS autor_foto_url, author_photo.mime_type AS autor_foto_mime_type,
+                   t.nombre AS tipo, r.nombre AS autor_rol,
                    a.nombre_original AS archivo_nombre, a.ruta AS archivo_url, a.mime_type AS archivo_mime_type,
                    COALESCE(l.likes_count, 0) AS likes_count,
                    COALESCE(cm.comments_count, 0) AS comments_count,
-                   IF(cl_user.id IS NOT NULL, 1, 0) AS user_liked
+                   IF(cl_user.id IS NOT NULL, 1, 0) AS user_liked,
+                   GROUP_CONCAT(DISTINCT cat.id ORDER BY cat.nombre SEPARATOR '|') AS category_ids,
+                   GROUP_CONCAT(DISTINCT cat.nombre ORDER BY cat.nombre SEPARATOR '|') AS categories,
+                   GROUP_CONCAT(DISTINCT cat.slug ORDER BY cat.nombre SEPARATOR '|') AS category_slugs
             FROM contenido c
             JOIN usuarios u ON c.autor_id = u.id
             JOIN tipos_contenido t ON c.tipo_id = t.id
             LEFT JOIN usuarios_roles ur ON u.id = ur.usuario_id
             LEFT JOIN roles r ON ur.rol_id = r.id
             LEFT JOIN archivos a ON a.entidad_tipo = 'contenido' AND a.entidad_id = c.id
+            LEFT JOIN archivos author_photo ON author_photo.entidad_tipo = 'usuario' AND author_photo.entidad_id = u.id
+            LEFT JOIN contenido_categorias cc ON cc.contenido_id = c.id
+            LEFT JOIN categorias cat ON cat.id = cc.categoria_id
             LEFT JOIN (
                 SELECT contenido_id, COUNT(*) as likes_count 
                 FROM contenido_likes 
@@ -148,26 +179,70 @@ if ($requestMethod === 'GET') {
             ) cm ON c.id = cm.contenido_id
             LEFT JOIN contenido_likes cl_user ON c.id = cl_user.contenido_id AND cl_user.usuario_id = ?
             $whereClause
+            GROUP BY c.id, c.titulo, c.cuerpo, c.estado, c.created_at, c.autor_id, c.tipo_id,
+                     u.nombre, author_photo.ruta, author_photo.mime_type,
+                     t.nombre, r.nombre, a.nombre_original, a.ruta, a.mime_type,
+                     l.likes_count, cm.comments_count, cl_user.id
             ORDER BY likes_count DESC, 
                      CASE r.nombre 
                         WHEN 'admin' THEN 3 
                         WHEN 'investigador' THEN 2 
                         ELSE 1 
                      END DESC, 
-                     c.created_at DESC";
+                     c.created_at DESC
+            LIMIT ? OFFSET ?";
 
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
+    $params = array_merge([$userId], $whereParams);
+    foreach ($params as $index => $value) {
+        $stmt->bindValue($index + 1, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+    }
+    $stmt->bindValue(count($params) + 1, $perPage, PDO::PARAM_INT);
+    $stmt->bindValue(count($params) + 2, $offset, PDO::PARAM_INT);
+    $stmt->execute();
     $results = $stmt->fetchAll();
+
+    $countSql = "SELECT COUNT(DISTINCT c.id) AS total
+                 FROM contenido c
+                 JOIN usuarios u ON c.autor_id = u.id
+                 JOIN tipos_contenido t ON c.tipo_id = t.id
+                 $whereClause";
+    $countStmt = $pdo->prepare($countSql);
+    foreach ($whereParams as $index => $value) {
+        $countStmt->bindValue($index + 1, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+    }
+    $countStmt->execute();
+    $countResult = $countStmt->fetch();
+    $total = (int) ($countResult['total'] ?? 0);
     
-    // Convert boolean user_liked to actual boolean and likes_count to int
     foreach($results as &$row) {
         $row['user_liked'] = (bool) $row['user_liked'];
         $row['likes_count'] = (int) $row['likes_count'];
         $row['comments_count'] = (int) $row['comments_count'];
+        $categoryIds = $row['category_ids'] ? explode('|', $row['category_ids']) : [];
+        $categoryNames = $row['categories'] ? explode('|', $row['categories']) : [];
+        $categorySlugs = $row['category_slugs'] ? explode('|', $row['category_slugs']) : [];
+        $row['categories'] = array_map(function ($id, $name, $slug) {
+            return [
+                'id' => (int) $id,
+                'nombre' => $name,
+                'slug' => $slug,
+            ];
+        }, $categoryIds, $categoryNames, $categorySlugs);
+        unset($row['category_ids'], $row['category_slugs']);
     }
     
-    echo json_encode($results);
+    echo json_encode([
+        'items' => $results,
+        'meta' => [
+            'page' => $page,
+            'per_page' => $perPage,
+            'total' => $total,
+            'total_pages' => max(1, (int) ceil($total / $perPage)),
+            'q' => $search,
+            'category_id' => $categoryId,
+        ],
+    ]);
     exit;
 }
 
@@ -219,6 +294,7 @@ $user = requireAuth();
 $titulo = trim($_POST['titulo'] ?? '');
 $cuerpo = trim($_POST['cuerpo'] ?? '');
 $tipo_id = isset($_POST['tipo_id']) ? (int) $_POST['tipo_id'] : 1;
+$categoryId = isset($_POST['category_id']) ? (int) $_POST['category_id'] : 0;
 $estado = $_POST['estado'] ?? 'publicado';
 $archivo = $_FILES['archivo'] ?? null;
 $estado = in_array($estado, ['publicado', 'borrador', 'archivado'], true) ? $estado : 'publicado';
@@ -232,10 +308,15 @@ if (!$titulo || !$cuerpo || !$tipo_id) {
 $uploadedFile = null;
 
 try {
+    ensureCategoriesReady($pdo);
     $uploadedFile = handleIncomingFile($archivo, $uploadsDir, $maxUploadSize, $allowedMimeTypes);
 } catch (RuntimeException $e) {
     http_response_code($e->getCode() >= 400 ? $e->getCode() : 500);
     echo json_encode(['error' => $e->getMessage()]);
+    exit;
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo json_encode(['error' => 'No se pudieron preparar las categorías']);
     exit;
 }
 
@@ -265,6 +346,13 @@ if ($action === 'actualizar') {
              WHERE id = ? AND autor_id = ?"
         );
         $stmt->execute([$titulo, $slug, $cuerpo, $tipo_id, $estado, $contentId, $user['id']]);
+
+        $stmt = $pdo->prepare("DELETE FROM contenido_categorias WHERE contenido_id = ?");
+        $stmt->execute([$contentId]);
+        if ($categoryId > 0) {
+            $stmt = $pdo->prepare("INSERT IGNORE INTO contenido_categorias (contenido_id, categoria_id) VALUES (?, ?)");
+            $stmt->execute([$contentId, $categoryId]);
+        }
 
         if (!empty($contenido['archivo_id']) && ($removeAttachment || $uploadedFile)) {
             $stmt = $pdo->prepare("DELETE FROM archivos WHERE id = ?");
@@ -327,6 +415,11 @@ try {
     );
     $stmt->execute([$titulo, $slug, $cuerpo, $user['id'], $tipo_id, $estado]);
     $contenidoId = $pdo->lastInsertId();
+
+    if ($categoryId > 0) {
+        $stmt = $pdo->prepare("INSERT IGNORE INTO contenido_categorias (contenido_id, categoria_id) VALUES (?, ?)");
+        $stmt->execute([$contenidoId, $categoryId]);
+    }
 
     if ($uploadedFile) {
         $stmt = $pdo->prepare(

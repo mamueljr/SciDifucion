@@ -182,6 +182,8 @@ CREATE TABLE IF NOT EXISTS `usuarios_perfiles` (
     `telefono` VARCHAR(50) NULL,
     `ubicacion` VARCHAR(255) NULL,
     `sitio_web` VARCHAR(255) NULL,
+    `orcid` VARCHAR(32) NULL,
+    `lineas_investigacion` TEXT NULL,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`usuario_id`),
     FOREIGN KEY (`usuario_id`) REFERENCES `usuarios`(`id`) ON DELETE CASCADE
@@ -208,3 +210,11 @@ INSERT INTO `tipos_contenido` (nombre, slug) VALUES
 ('Video', 'video'), 
 ('Podcast', 'podcast'), 
 ('Infografía', 'infografia');
+
+INSERT IGNORE INTO `categorias` (nombre, slug, descripcion) VALUES
+('Educación', 'educacion', 'Investigación y práctica educativa'),
+('Tecnología', 'tecnologia', 'Herramientas, plataformas e innovación tecnológica'),
+('Ciencias Sociales', 'ciencias-sociales', 'Estudios sociales, comunidad y cultura'),
+('Salud', 'salud', 'Investigación relacionada con bienestar y ciencias de la salud'),
+('Inteligencia Artificial', 'inteligencia-artificial', 'Aplicaciones, modelos y análisis con IA'),
+('Investigación Educativa', 'investigacion-educativa', 'Líneas, métodos y resultados de investigación educativa');
